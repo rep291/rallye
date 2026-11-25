@@ -339,6 +339,14 @@ export function updateVisual(api, mode, t, dt, catalog) {
 }
 
 const ROSTER = ['Casual_Male', 'Casual_Female', 'Casual2_Male', 'Suit_Male', 'Worker_Female'];
+const FIGURE_MODEL = {
+  koch: 'Chef_Male', baecker: 'Chef_Male', friseur: 'Chef_Female',
+  arzt: 'Doctor_Male_Young', pflege: 'Doctor_Female_Young', labor: 'Doctor_Female_Young',
+  buero: 'Suit_Male', it: 'Suit_Male', verkauf: 'Casual_Female', polizei: 'Suit_Male',
+  mechanik: 'Worker_Male', lager: 'Worker_Female', tischler: 'Worker_Male', elektrik: 'Worker_Male',
+  maurer: 'Worker_Male', schweiss: 'Worker_Male', feuerwehr: 'Worker_Male',
+  garten: 'Worker_Female', landwirt: 'Worker_Female', fahrer: 'Casual2_Male', maler: 'Casual2_Male', kiga: 'Casual_Female'
+};
 
 const SKIN_COLOR = new THREE.Color('#f0c09a');
 const HAIR_COLOR = new THREE.Color('#6b3f28');
@@ -394,10 +402,15 @@ function standOnGround(obj, height) {
 
 /** Quaternius-Figur aus dem geladenen Katalog. Shirt und Hose in der Spielerfarbe. */
 export function equipFromLibrary(api, lib, player) {
-  if (!api || api.model || !lib || !lib.chars) return;
+  if (!api || !lib || !lib.chars) return;
   const ids = ROSTER.filter(id => lib.chars[id]);
-  if (!ids.length) return;
-  const id = ids[hashId(player.id) % ids.length];
+  const mapped = FIGURE_MODEL[player.figure];
+  const id = (mapped && lib.chars[mapped]) ? mapped : (ids[hashId(player.id) % Math.max(1, ids.length)] || null);
+  if (!id) return;
+  if (api.modelId === id && api.tint === player.color) return;
+  if (api.model) { api.tilt.remove(api.model); api.model = null; api.mixer = null; api.clips = {}; api.current = ''; }
+  api.modelId = id;
+  api.tint = player.color;
   const gltf = lib.chars[id];
   const model = cloneSkinned(gltf.scene);
   standOnGround(model, 1.72);

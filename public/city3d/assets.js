@@ -249,8 +249,37 @@ export function dressWorld(scene, layout, lib, built) {
     if (!ICONS[p.type]) continue;
     const icon = makeTextPlane(ICONS[p.type], { w: 128, h: 128, bg: COLORS[p.type], fg: '#fffaf3', pw: 0.7, ph: 0.7, font: 78 });
     icon.rotation.x = -Math.PI / 2;
-    icon.position.set(p.x, 0.36, p.z);
+    icon.position.set(p.x, 0.48, p.z);
+    icon.scale.setScalar(1.35);
     group.add(icon);
+  }
+
+  const arrows = [];
+  for (let i = 0; i < layout.points.length - 1; i++) {
+    const a = layout.points[i], b = layout.points[i + 1];
+    arrows.push({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, rot: Math.atan2(b.x - a.x, b.z - a.z) });
+  }
+  const arrowGeo = new THREE.ConeGeometry(0.18, 0.55, 4);
+  arrowGeo.rotateX(Math.PI / 2);
+  const arrowMesh = new THREE.InstancedMesh(arrowGeo, new THREE.MeshBasicMaterial({ color: '#ffe08a' }), Math.max(1, arrows.length));
+  arrowMesh.userData.fullCount = arrows.length;
+  const ad = new THREE.Object3D();
+  arrows.forEach((p, i) => { ad.position.set(p.x, 0.2, p.z); ad.rotation.set(-Math.PI / 2, 0, p.rot); ad.updateMatrix(); arrowMesh.setMatrixAt(i, ad.matrix); });
+  arrowMesh.instanceMatrix.needsUpdate = true;
+  group.add(arrowMesh);
+  const pulse = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.42, 24), new THREE.MeshBasicMaterial({ color: 0xffe14a, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+  pulse.rotation.x = -Math.PI / 2;
+  pulse.visible = false;
+  group.add(pulse);
+  built.pulse = pulse;
+  built.pointList = layout.points;
+  const start = layout.points[0];
+  if (start) {
+    const plaza = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 5.5, 0.05, 24), new THREE.MeshLambertMaterial({ color: '#e7d3a1' }));
+    plaza.position.set(start.x, 0.02, start.z);
+    group.add(plaza);
+    place(group, lib.all.parasol, 1.6, start.x + 4.2, start.z + 3.2, 0.4);
+    place(group, lib.all.awning, 1.15, start.x - 3.5, start.z + 2.4, 0.2);
   }
 
   const walkers = [];
@@ -304,11 +333,25 @@ function addRoom(parent, b, roofs) {
     }
   }
   if (!b.open) {
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(L + 0.4, 0.16, D + 0.4), new THREE.MeshLambertMaterial({ color: b.roof }));
-    roof.position.y = H + 0.22;
-    roof.castShadow = true;
-    g.add(roof);
-    roofs.push({ mesh: roof, from: b.fieldFrom, to: b.fieldTo });
+    const roofG = new THREE.Group();
+    const roofMat = new THREE.MeshLambertMaterial({ color: b.roof });
+    const solarMat = new THREE.MeshLambertMaterial({ color: '#1f6fbf' });
+    const plantMat = new THREE.MeshLambertMaterial({ color: '#2f9a45' });
+    for (const z of [D * 0.34, -D * 0.34]) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(L, 0.14, D * 0.3), roofMat);
+      slab.position.set(0, H + 0.22, z);
+      slab.castShadow = true;
+      roofG.add(slab);
+    }
+    const solar = new THREE.Mesh(new THREE.BoxGeometry(L * 0.28, 0.06, D * 0.16), solarMat);
+    solar.position.set(-L * 0.2, H + 0.36, D * 0.34);
+    const green = new THREE.Mesh(new THREE.BoxGeometry(L * 0.18, 0.08, D * 0.16), plantMat);
+    green.position.set(L * 0.22, H + 0.34, -D * 0.34);
+    const chim = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.7, 0.42), new THREE.MeshLambertMaterial({ color: '#8a4030' }));
+    chim.position.set(L * 0.32, H + 0.62, D * 0.34);
+    roofG.add(solar, green, chim);
+    g.add(roofG);
+    roofs.push({ mesh: roofG, from: b.fieldFrom, to: b.fieldTo });
   }
   parent.add(g);
 }
@@ -586,6 +629,15 @@ export function stepCrowd(built, dt, scene) {
     }
     birds.instanceMatrix.needsUpdate = true;
   }
+  if (built.pulse && built.pointList && built.pulseIndex >= 0) {
+    const fp = built.pointList[built.pulseIndex];
+    if (fp) {
+      const s = 1 + Math.sin(now * 5) * 0.1;
+      built.pulse.visible = true;
+      built.pulse.position.set(fp.x, 0.42, fp.z);
+      built.pulse.scale.set(s, s, 1);
+    }
+  } else if (built.pulse) built.pulse.visible = false;
   const inside = built.insideIndex;
   for (const roof of built.roofs || []) roof.mesh.visible = !(inside >= roof.from && inside <= roof.to);
   const puffs = (scene && scene.userData.puffs) || [];

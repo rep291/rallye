@@ -1,0 +1,18 @@
+BERUFE-RALLYE — Soundeffekte
+================================
+
+Erzeugt: 25. November 2026, Europe/Vienna (CET)
+Herkunft: vollständig selbst synthetisiert. Keine fremden Samples.
+Werkzeuge: Python 3 (numpy, scipy), ffmpeg (loudnorm/ebur128, libmp3lame, libvorbis).
+Generator: /workspace/brettspiel_app/_tools/make_sfx.py  (Seed 42, 44,1 kHz mono)
+
+Lizenz: CC0 1.0 Universal (Public Domain Dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Die Dateien dürfen frei genutzt, vervielfältigt, verändert und weitergegeben
+werden, auch kommerziell, ohne Namensnennung und ohne weitere Bedingungen.
+
+Dateiformate: je Effekt als .ogg (Vorbis) und .mp3, 44,1 kHz mono,
+Ziel-Lautheit ca. −16 LUFS (True Peak ≤ −1 dBTP).
+lobby_loop: 32 s, ca. −20 LUFS, 22,05 kHz / 20 kbit/s, nahtlos loopbar
+(Ogg bevorzugt; MP3 hat typisches Encoder-Padding von ca. 50 ms).

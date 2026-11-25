@@ -1,786 +1,829 @@
 {
- "_hinweis": "Aus Feldliste.csv (BERUFE-RALLYE, Game Art Director) erzeugt mit tools/import_feldliste.js. Position 0 = START, 1-100 = Felder, 101 = ZIEL. x/y in mm auf 865 x 565 mm (oben links = 0/0).",
- "title": "BERUFE-RALLYE",
- "width": 865,
- "height": 565,
- "background": "/assets/board/berufe-rallye.jpg",
- "drawFields": false,
- "fieldRadius": 15,
- "pawnRadius": 10.5,
- "colors": {
-  "boardBg": "#ffffff",
-  "track": "#d8d2c4",
-  "normal": "#ffffff",
-  "aktion": "#f28c28",
-  "frage": "#2f6fd6",
-  "rutsche": "#e03a8c",
-  "finanzpolizei": "#5b3a8c",
-  "start": "#2e9e5b",
-  "ziel": "#e0407e",
-  "text": "#1d2433"
- },
- "sectors": [],
- "rules": {
-  "dice": 6,
-  "finishExact": false,
-  "questionMode": "host",
-  "questionTimeSec": 0,
-  "stepMs": 260,
-  "cardDisplayMs": 4500,
-  "resultDisplayMs": 3000,
-  "infoDisplayMs": 2600,
-  "minPlayers": 2,
-  "maxPlayers": 30,
-  "allowLateJoin": true,
-  "allowRemoteHost": false,
-  "teams": {
-   "enabled": false,
-   "list": [
+  "_hinweis": "Aus Feldliste.csv (BERUFE-RALLYE, Game Art Director) erzeugt mit tools/import_feldliste.js. Position 0 = START, 1-100 = Felder, 101 = ZIEL. x/y in mm auf 865 x 565 mm (oben links = 0/0).",
+  "title": "BERUFE-RALLYE",
+  "width": 865,
+  "height": 565,
+  "background": "/assets/board/berufe-rallye.jpg",
+  "drawFields": false,
+  "fieldRadius": 15,
+  "pawnRadius": 10.5,
+  "colors": {
+    "boardBg": "#ffffff",
+    "track": "#d8d2c4",
+    "normal": "#ffffff",
+    "aktion": "#f28c28",
+    "frage": "#2f6fd6",
+    "rutsche": "#e03a8c",
+    "finanzpolizei": "#5b3a8c",
+    "start": "#2e9e5b",
+    "ziel": "#e0407e",
+    "text": "#1d2433"
+  },
+  "sectors": [],
+  "rules": {
+    "dice": 6,
+    "finishExact": false,
+    "questionMode": "host",
+    "questionTimeSec": 0,
+    "stepMs": 260,
+    "cardDisplayMs": 4500,
+    "resultDisplayMs": 3000,
+    "infoDisplayMs": 2600,
+    "minPlayers": 2,
+    "maxPlayers": 30,
+    "allowLateJoin": true,
+    "allowRemoteHost": false,
+    "teams": {
+      "enabled": false,
+      "list": [
+        {
+          "name": "Team Rot",
+          "color": "#d62828"
+        },
+        {
+          "name": "Team Blau",
+          "color": "#1d4ed8"
+        },
+        {
+          "name": "Team Grün",
+          "color": "#15803d"
+        },
+        {
+          "name": "Team Gelb",
+          "color": "#ca8a04"
+        }
+      ]
+    },
+    "finanzpolizei": {
+      "need": 6,
+      "moveOnRelease": true,
+      "maxTries": 0
+    },
+    "chainCards": false
+  },
+  "fields": [
     {
-     "name": "Team Rot",
-     "color": "#d62828"
+      "id": 0,
+      "x": 286,
+      "y": 532,
+      "type": "start",
+      "label": "START"
     },
     {
-     "name": "Team Blau",
-     "color": "#1d4ed8"
+      "id": 1,
+      "x": 219.8,
+      "y": 525.8,
+      "type": "normal",
+      "label": "1"
     },
     {
-     "name": "Team Grün",
-     "color": "#15803d"
+      "id": 2,
+      "x": 189.4,
+      "y": 513.3,
+      "type": "normal",
+      "label": "2"
     },
     {
-     "name": "Team Gelb",
-     "color": "#ca8a04"
+      "id": 3,
+      "x": 159,
+      "y": 500.8,
+      "type": "normal",
+      "label": "3"
+    },
+    {
+      "id": 4,
+      "x": 128.6,
+      "y": 488.3,
+      "type": "frage",
+      "label": "4"
+    },
+    {
+      "id": 5,
+      "x": 98.2,
+      "y": 475.8,
+      "type": "normal",
+      "label": "5"
+    },
+    {
+      "id": 6,
+      "x": 68.7,
+      "y": 461.5,
+      "type": "normal",
+      "label": "6"
+    },
+    {
+      "id": 7,
+      "x": 47.6,
+      "y": 436.7,
+      "type": "aktion",
+      "label": "7"
+    },
+    {
+      "id": 8,
+      "x": 40,
+      "y": 405,
+      "type": "normal",
+      "label": "8"
+    },
+    {
+      "id": 9,
+      "x": 47.6,
+      "y": 373.4,
+      "type": "aktion",
+      "label": "9"
+    },
+    {
+      "id": 10,
+      "x": 68.6,
+      "y": 348.5,
+      "type": "normal",
+      "label": "10"
+    },
+    {
+      "id": 11,
+      "x": 98.7,
+      "y": 335.9,
+      "type": "aktion",
+      "label": "11"
+    },
+    {
+      "id": 12,
+      "x": 131.1,
+      "y": 338.3,
+      "type": "normal",
+      "label": "12"
+    },
+    {
+      "id": 13,
+      "x": 159.7,
+      "y": 354.2,
+      "type": "frage",
+      "label": "13"
+    },
+    {
+      "id": 14,
+      "x": 186.9,
+      "y": 372.7,
+      "type": "normal",
+      "label": "14"
+    },
+    {
+      "id": 15,
+      "x": 214.1,
+      "y": 391.2,
+      "type": "rutsche",
+      "label": "15",
+      "to": 3
+    },
+    {
+      "id": 16,
+      "x": 241.3,
+      "y": 409.6,
+      "type": "normal",
+      "label": "16"
+    },
+    {
+      "id": 17,
+      "x": 272.2,
+      "y": 419.8,
+      "type": "frage",
+      "label": "17"
+    },
+    {
+      "id": 18,
+      "x": 304.4,
+      "y": 414.8,
+      "type": "normal",
+      "label": "18"
+    },
+    {
+      "id": 19,
+      "x": 330.9,
+      "y": 395.9,
+      "type": "normal",
+      "label": "19"
+    },
+    {
+      "id": 20,
+      "x": 345.9,
+      "y": 367,
+      "type": "aktion",
+      "label": "20"
+    },
+    {
+      "id": 21,
+      "x": 346.2,
+      "y": 334.4,
+      "type": "normal",
+      "label": "21"
+    },
+    {
+      "id": 22,
+      "x": 331.8,
+      "y": 305.2,
+      "type": "frage",
+      "label": "22"
+    },
+    {
+      "id": 23,
+      "x": 305.7,
+      "y": 285.7,
+      "type": "normal",
+      "label": "23"
+    },
+    {
+      "id": 24,
+      "x": 273.7,
+      "y": 278.7,
+      "type": "frage",
+      "label": "24"
+    },
+    {
+      "id": 25,
+      "x": 241.2,
+      "y": 274.1,
+      "type": "normal",
+      "label": "25"
+    },
+    {
+      "id": 26,
+      "x": 208.7,
+      "y": 269.5,
+      "type": "aktion",
+      "label": "26"
+    },
+    {
+      "id": 27,
+      "x": 176.1,
+      "y": 264.9,
+      "type": "normal",
+      "label": "27"
+    },
+    {
+      "id": 28,
+      "x": 143.6,
+      "y": 260.3,
+      "type": "rutsche",
+      "label": "28",
+      "to": 12
+    },
+    {
+      "id": 29,
+      "x": 111,
+      "y": 255.7,
+      "type": "normal",
+      "label": "29"
+    },
+    {
+      "id": 30,
+      "x": 80.5,
+      "y": 244.3,
+      "type": "aktion",
+      "label": "30"
+    },
+    {
+      "id": 31,
+      "x": 59.1,
+      "y": 219.8,
+      "type": "normal",
+      "label": "31"
+    },
+    {
+      "id": 32,
+      "x": 52,
+      "y": 188.1,
+      "type": "normal",
+      "label": "32"
+    },
+    {
+      "id": 33,
+      "x": 61,
+      "y": 156.8,
+      "type": "finanzpolizei",
+      "label": "33"
+    },
+    {
+      "id": 34,
+      "x": 83.7,
+      "y": 133.6,
+      "type": "normal",
+      "label": "34"
+    },
+    {
+      "id": 35,
+      "x": 114.8,
+      "y": 124.1,
+      "type": "frage",
+      "label": "35"
+    },
+    {
+      "id": 36,
+      "x": 146.7,
+      "y": 130.6,
+      "type": "normal",
+      "label": "36"
+    },
+    {
+      "id": 37,
+      "x": 173.3,
+      "y": 149.8,
+      "type": "aktion",
+      "label": "37"
+    },
+    {
+      "id": 38,
+      "x": 198.9,
+      "y": 170.4,
+      "type": "normal",
+      "label": "38"
+    },
+    {
+      "id": 39,
+      "x": 224.5,
+      "y": 191,
+      "type": "frage",
+      "label": "39"
+    },
+    {
+      "id": 40,
+      "x": 250.1,
+      "y": 211.6,
+      "type": "normal",
+      "label": "40"
+    },
+    {
+      "id": 41,
+      "x": 278.1,
+      "y": 228.2,
+      "type": "aktion",
+      "label": "41"
+    },
+    {
+      "id": 42,
+      "x": 310.4,
+      "y": 226.8,
+      "type": "normal",
+      "label": "42"
+    },
+    {
+      "id": 43,
+      "x": 336.1,
+      "y": 207.1,
+      "type": "normal",
+      "label": "43"
+    },
+    {
+      "id": 44,
+      "x": 353,
+      "y": 178.9,
+      "type": "normal",
+      "label": "44"
+    },
+    {
+      "id": 45,
+      "x": 369.6,
+      "y": 150.5,
+      "type": "frage",
+      "label": "45"
+    },
+    {
+      "id": 46,
+      "x": 386.3,
+      "y": 122.2,
+      "type": "normal",
+      "label": "46"
+    },
+    {
+      "id": 47,
+      "x": 403.2,
+      "y": 94,
+      "type": "normal",
+      "label": "47"
+    },
+    {
+      "id": 48,
+      "x": 427.9,
+      "y": 72.8,
+      "type": "aktion",
+      "label": "48"
+    },
+    {
+      "id": 49,
+      "x": 459.5,
+      "y": 65,
+      "type": "normal",
+      "label": "49"
+    },
+    {
+      "id": 50,
+      "x": 491.3,
+      "y": 72.4,
+      "type": "aktion",
+      "label": "50"
+    },
+    {
+      "id": 51,
+      "x": 516.2,
+      "y": 93.3,
+      "type": "normal",
+      "label": "51"
+    },
+    {
+      "id": 52,
+      "x": 529,
+      "y": 123.2,
+      "type": "normal",
+      "label": "52"
+    },
+    {
+      "id": 53,
+      "x": 526.9,
+      "y": 155.7,
+      "type": "normal",
+      "label": "53"
+    },
+    {
+      "id": 54,
+      "x": 511.4,
+      "y": 184.6,
+      "type": "frage",
+      "label": "54"
+    },
+    {
+      "id": 55,
+      "x": 493.7,
+      "y": 212.3,
+      "type": "normal",
+      "label": "55"
+    },
+    {
+      "id": 56,
+      "x": 476,
+      "y": 240,
+      "type": "rutsche",
+      "label": "56",
+      "to": 44
+    },
+    {
+      "id": 57,
+      "x": 458.3,
+      "y": 267.7,
+      "type": "normal",
+      "label": "57"
+    },
+    {
+      "id": 58,
+      "x": 440.6,
+      "y": 295.4,
+      "type": "normal",
+      "label": "58"
+    },
+    {
+      "id": 59,
+      "x": 422.9,
+      "y": 323.1,
+      "type": "normal",
+      "label": "59"
+    },
+    {
+      "id": 60,
+      "x": 405.3,
+      "y": 350.8,
+      "type": "aktion",
+      "label": "60"
+    },
+    {
+      "id": 61,
+      "x": 392.9,
+      "y": 380.9,
+      "type": "normal",
+      "label": "61"
+    },
+    {
+      "id": 62,
+      "x": 395.4,
+      "y": 413.4,
+      "type": "finanzpolizei",
+      "label": "62"
+    },
+    {
+      "id": 63,
+      "x": 412.3,
+      "y": 441.3,
+      "type": "normal",
+      "label": "63"
+    },
+    {
+      "id": 64,
+      "x": 439.9,
+      "y": 458.4,
+      "type": "aktion",
+      "label": "64"
+    },
+    {
+      "id": 65,
+      "x": 472.4,
+      "y": 461.2,
+      "type": "normal",
+      "label": "65"
+    },
+    {
+      "id": 66,
+      "x": 502.6,
+      "y": 449,
+      "type": "aktion",
+      "label": "66"
+    },
+    {
+      "id": 67,
+      "x": 524,
+      "y": 424.5,
+      "type": "normal",
+      "label": "67"
+    },
+    {
+      "id": 68,
+      "x": 532.1,
+      "y": 392.9,
+      "type": "frage",
+      "label": "68"
+    },
+    {
+      "id": 69,
+      "x": 534.1,
+      "y": 360.1,
+      "type": "normal",
+      "label": "69"
+    },
+    {
+      "id": 70,
+      "x": 536.2,
+      "y": 327.3,
+      "type": "rutsche",
+      "label": "70",
+      "to": 58
+    },
+    {
+      "id": 71,
+      "x": 547,
+      "y": 296.7,
+      "type": "normal",
+      "label": "71"
+    },
+    {
+      "id": 72,
+      "x": 571.9,
+      "y": 275.8,
+      "type": "normal",
+      "label": "72"
+    },
+    {
+      "id": 73,
+      "x": 603.9,
+      "y": 270.3,
+      "type": "normal",
+      "label": "73"
+    },
+    {
+      "id": 74,
+      "x": 634.3,
+      "y": 281.7,
+      "type": "normal",
+      "label": "74"
+    },
+    {
+      "id": 75,
+      "x": 654.7,
+      "y": 307,
+      "type": "aktion",
+      "label": "75"
+    },
+    {
+      "id": 76,
+      "x": 659.6,
+      "y": 339.1,
+      "type": "normal",
+      "label": "76"
+    },
+    {
+      "id": 77,
+      "x": 648.4,
+      "y": 369.7,
+      "type": "aktion",
+      "label": "77"
+    },
+    {
+      "id": 78,
+      "x": 633.7,
+      "y": 399.1,
+      "type": "normal",
+      "label": "78"
+    },
+    {
+      "id": 79,
+      "x": 619,
+      "y": 428.5,
+      "type": "normal",
+      "label": "79"
+    },
+    {
+      "id": 80,
+      "x": 605.3,
+      "y": 458.3,
+      "type": "rutsche",
+      "label": "80",
+      "to": 67
+    },
+    {
+      "id": 81,
+      "x": 605.1,
+      "y": 490.8,
+      "type": "normal",
+      "label": "81"
+    },
+    {
+      "id": 82,
+      "x": 621.3,
+      "y": 519,
+      "type": "frage",
+      "label": "82"
+    },
+    {
+      "id": 83,
+      "x": 649.5,
+      "y": 535,
+      "type": "normal",
+      "label": "83"
+    },
+    {
+      "id": 84,
+      "x": 682,
+      "y": 534.6,
+      "type": "aktion",
+      "label": "84"
+    },
+    {
+      "id": 85,
+      "x": 709.8,
+      "y": 517.9,
+      "type": "normal",
+      "label": "85"
+    },
+    {
+      "id": 86,
+      "x": 725.3,
+      "y": 489.3,
+      "type": "finanzpolizei",
+      "label": "86"
+    },
+    {
+      "id": 87,
+      "x": 725.7,
+      "y": 456.6,
+      "type": "normal",
+      "label": "87"
+    },
+    {
+      "id": 88,
+      "x": 723.2,
+      "y": 423.9,
+      "type": "frage",
+      "label": "88"
+    },
+    {
+      "id": 89,
+      "x": 720.6,
+      "y": 391.1,
+      "type": "normal",
+      "label": "89"
+    },
+    {
+      "id": 90,
+      "x": 718,
+      "y": 358.3,
+      "type": "normal",
+      "label": "90"
+    },
+    {
+      "id": 91,
+      "x": 716.2,
+      "y": 325.5,
+      "type": "normal",
+      "label": "91"
+    },
+    {
+      "id": 92,
+      "x": 727.2,
+      "y": 295,
+      "type": "normal",
+      "label": "92"
+    },
+    {
+      "id": 93,
+      "x": 752.6,
+      "y": 274.8,
+      "type": "frage",
+      "label": "93"
+    },
+    {
+      "id": 94,
+      "x": 784.8,
+      "y": 270.6,
+      "type": "normal",
+      "label": "94"
+    },
+    {
+      "id": 95,
+      "x": 814.4,
+      "y": 283.9,
+      "type": "aktion",
+      "label": "95"
+    },
+    {
+      "id": 96,
+      "x": 832.8,
+      "y": 310.7,
+      "type": "normal",
+      "label": "96"
+    },
+    {
+      "id": 97,
+      "x": 834.6,
+      "y": 343.1,
+      "type": "normal",
+      "label": "97"
+    },
+    {
+      "id": 98,
+      "x": 827,
+      "y": 375.1,
+      "type": "normal",
+      "label": "98"
+    },
+    {
+      "id": 99,
+      "x": 819.4,
+      "y": 407,
+      "type": "rutsche",
+      "label": "99",
+      "to": 89
+    },
+    {
+      "id": 100,
+      "x": 811.8,
+      "y": 439,
+      "type": "normal",
+      "label": "100"
+    },
+    {
+      "id": 101,
+      "x": 808,
+      "y": 512,
+      "type": "ziel",
+      "label": "ZIEL"
     }
-   ]
-  },
-  "finanzpolizei": {
-   "need": 6,
-   "moveOnRelease": true,
-   "maxTries": 0
-  },
-  "chainCards": false
- },
- "fields": [
-  {
-   "id": 0,
-   "x": 286,
-   "y": 532,
-   "type": "start",
-   "label": "START"
-  },
-  {
-   "id": 1,
-   "x": 219.8,
-   "y": 525.8,
-   "type": "normal",
-   "label": "1"
-  },
-  {
-   "id": 2,
-   "x": 189.4,
-   "y": 513.3,
-   "type": "normal",
-   "label": "2"
-  },
-  {
-   "id": 3,
-   "x": 159,
-   "y": 500.8,
-   "type": "normal",
-   "label": "3"
-  },
-  {
-   "id": 4,
-   "x": 128.6,
-   "y": 488.3,
-   "type": "frage",
-   "label": "4"
-  },
-  {
-   "id": 5,
-   "x": 98.2,
-   "y": 475.8,
-   "type": "normal",
-   "label": "5"
-  },
-  {
-   "id": 6,
-   "x": 68.7,
-   "y": 461.5,
-   "type": "normal",
-   "label": "6"
-  },
-  {
-   "id": 7,
-   "x": 47.6,
-   "y": 436.7,
-   "type": "aktion",
-   "label": "7"
-  },
-  {
-   "id": 8,
-   "x": 40,
-   "y": 405,
-   "type": "normal",
-   "label": "8"
-  },
-  {
-   "id": 9,
-   "x": 47.6,
-   "y": 373.4,
-   "type": "aktion",
-   "label": "9"
-  },
-  {
-   "id": 10,
-   "x": 68.6,
-   "y": 348.5,
-   "type": "normal",
-   "label": "10"
-  },
-  {
-   "id": 11,
-   "x": 98.7,
-   "y": 335.9,
-   "type": "aktion",
-   "label": "11"
-  },
-  {
-   "id": 12,
-   "x": 131.1,
-   "y": 338.3,
-   "type": "normal",
-   "label": "12"
-  },
-  {
-   "id": 13,
-   "x": 159.7,
-   "y": 354.2,
-   "type": "frage",
-   "label": "13"
-  },
-  {
-   "id": 14,
-   "x": 186.9,
-   "y": 372.7,
-   "type": "normal",
-   "label": "14"
-  },
-  {
-   "id": 15,
-   "x": 214.1,
-   "y": 391.2,
-   "type": "rutsche",
-   "label": "15",
-   "to": 3
-  },
-  {
-   "id": 16,
-   "x": 241.3,
-   "y": 409.6,
-   "type": "normal",
-   "label": "16"
-  },
-  {
-   "id": 17,
-   "x": 272.2,
-   "y": 419.8,
-   "type": "frage",
-   "label": "17"
-  },
-  {
-   "id": 18,
-   "x": 304.4,
-   "y": 414.8,
-   "type": "normal",
-   "label": "18"
-  },
-  {
-   "id": 19,
-   "x": 330.9,
-   "y": 395.9,
-   "type": "normal",
-   "label": "19"
-  },
-  {
-   "id": 20,
-   "x": 345.9,
-   "y": 367,
-   "type": "aktion",
-   "label": "20"
-  },
-  {
-   "id": 21,
-   "x": 346.2,
-   "y": 334.4,
-   "type": "normal",
-   "label": "21"
-  },
-  {
-   "id": 22,
-   "x": 331.8,
-   "y": 305.2,
-   "type": "frage",
-   "label": "22"
-  },
-  {
-   "id": 23,
-   "x": 305.7,
-   "y": 285.7,
-   "type": "normal",
-   "label": "23"
-  },
-  {
-   "id": 24,
-   "x": 273.7,
-   "y": 278.7,
-   "type": "frage",
-   "label": "24"
-  },
-  {
-   "id": 25,
-   "x": 241.2,
-   "y": 274.1,
-   "type": "normal",
-   "label": "25"
-  },
-  {
-   "id": 26,
-   "x": 208.7,
-   "y": 269.5,
-   "type": "aktion",
-   "label": "26"
-  },
-  {
-   "id": 27,
-   "x": 176.1,
-   "y": 264.9,
-   "type": "normal",
-   "label": "27"
-  },
-  {
-   "id": 28,
-   "x": 143.6,
-   "y": 260.3,
-   "type": "rutsche",
-   "label": "28",
-   "to": 12
-  },
-  {
-   "id": 29,
-   "x": 111,
-   "y": 255.7,
-   "type": "normal",
-   "label": "29"
-  },
-  {
-   "id": 30,
-   "x": 80.5,
-   "y": 244.3,
-   "type": "aktion",
-   "label": "30"
-  },
-  {
-   "id": 31,
-   "x": 59.1,
-   "y": 219.8,
-   "type": "normal",
-   "label": "31"
-  },
-  {
-   "id": 32,
-   "x": 52,
-   "y": 188.1,
-   "type": "normal",
-   "label": "32"
-  },
-  {
-   "id": 33,
-   "x": 61,
-   "y": 156.8,
-   "type": "finanzpolizei",
-   "label": "33"
-  },
-  {
-   "id": 34,
-   "x": 83.7,
-   "y": 133.6,
-   "type": "normal",
-   "label": "34"
-  },
-  {
-   "id": 35,
-   "x": 114.8,
-   "y": 124.1,
-   "type": "frage",
-   "label": "35"
-  },
-  {
-   "id": 36,
-   "x": 146.7,
-   "y": 130.6,
-   "type": "normal",
-   "label": "36"
-  },
-  {
-   "id": 37,
-   "x": 173.3,
-   "y": 149.8,
-   "type": "aktion",
-   "label": "37"
-  },
-  {
-   "id": 38,
-   "x": 198.9,
-   "y": 170.4,
-   "type": "normal",
-   "label": "38"
-  },
-  {
-   "id": 39,
-   "x": 224.5,
-   "y": 191,
-   "type": "frage",
-   "label": "39"
-  },
-  {
-   "id": 40,
-   "x": 250.1,
-   "y": 211.6,
-   "type": "normal",
-   "label": "40"
-  },
-  {
-   "id": 41,
-   "x": 278.1,
-   "y": 228.2,
-   "type": "aktion",
-   "label": "41"
-  },
-  {
-   "id": 42,
-   "x": 310.4,
-   "y": 226.8,
-   "type": "normal",
-   "label": "42"
-  },
-  {
-   "id": 43,
-   "x": 336.1,
-   "y": 207.1,
-   "type": "normal",
-   "label": "43"
-  },
-  {
-   "id": 44,
-   "x": 353,
-   "y": 178.9,
-   "type": "normal",
-   "label": "44"
-  },
-  {
-   "id": 45,
-   "x": 369.6,
-   "y": 150.5,
-   "type": "frage",
-   "label": "45"
-  },
-  {
-   "id": 46,
-   "x": 386.3,
-   "y": 122.2,
-   "type": "normal",
-   "label": "46"
-  },
-  {
-   "id": 47,
-   "x": 403.2,
-   "y": 94,
-   "type": "normal",
-   "label": "47"
-  },
-  {
-   "id": 48,
-   "x": 427.9,
-   "y": 72.8,
-   "type": "aktion",
-   "label": "48"
-  },
-  {
-   "id": 49,
-   "x": 459.5,
-   "y": 65,
-   "type": "normal",
-   "label": "49"
-  },
-  {
-   "id": 50,
-   "x": 491.3,
-   "y": 72.4,
-   "type": "aktion",
-   "label": "50"
-  },
-  {
-   "id": 51,
-   "x": 516.2,
-   "y": 93.3,
-   "type": "normal",
-   "label": "51"
-  },
-  {
-   "id": 52,
-   "x": 529,
-   "y": 123.2,
-   "type": "normal",
-   "label": "52"
-  },
-  {
-   "id": 53,
-   "x": 526.9,
-   "y": 155.7,
-   "type": "normal",
-   "label": "53"
-  },
-  {
-   "id": 54,
-   "x": 511.4,
-   "y": 184.6,
-   "type": "frage",
-   "label": "54"
-  },
-  {
-   "id": 55,
-   "x": 493.7,
-   "y": 212.3,
-   "type": "normal",
-   "label": "55"
-  },
-  {
-   "id": 56,
-   "x": 476,
-   "y": 240,
-   "type": "rutsche",
-   "label": "56",
-   "to": 44
-  },
-  {
-   "id": 57,
-   "x": 458.3,
-   "y": 267.7,
-   "type": "normal",
-   "label": "57"
-  },
-  {
-   "id": 58,
-   "x": 440.6,
-   "y": 295.4,
-   "type": "normal",
-   "label": "58"
-  },
-  {
-   "id": 59,
-   "x": 422.9,
-   "y": 323.1,
-   "type": "normal",
-   "label": "59"
-  },
-  {
-   "id": 60,
-   "x": 405.3,
-   "y": 350.8,
-   "type": "aktion",
-   "label": "60"
-  },
-  {
-   "id": 61,
-   "x": 392.9,
-   "y": 380.9,
-   "type": "normal",
-   "label": "61"
-  },
-  {
-   "id": 62,
-   "x": 395.4,
-   "y": 413.4,
-   "type": "finanzpolizei",
-   "label": "62"
-  },
-  {
-   "id": 63,
-   "x": 412.3,
-   "y": 441.3,
-   "type": "normal",
-   "label": "63"
-  },
-  {
-   "id": 64,
-   "x": 439.9,
-   "y": 458.4,
-   "type": "aktion",
-   "label": "64"
-  },
-  {
-   "id": 65,
-   "x": 472.4,
-   "y": 461.2,
-   "type": "normal",
-   "label": "65"
-  },
-  {
-   "id": 66,
-   "x": 502.6,
-   "y": 449,
-   "type": "aktion",
-   "label": "66"
-  },
-  {
-   "id": 67,
-   "x": 524,
-   "y": 424.5,
-   "type": "normal",
-   "label": "67"
-  },
-  {
-   "id": 68,
-   "x": 532.1,
-   "y": 392.9,
-   "type": "frage",
-   "label": "68"
-  },
-  {
-   "id": 69,
-   "x": 534.1,
-   "y": 360.1,
-   "type": "normal",
-   "label": "69"
-  },
-  {
-   "id": 70,
-   "x": 536.2,
-   "y": 327.3,
-   "type": "rutsche",
-   "label": "70",
-   "to": 58
-  },
-  {
-   "id": 71,
-   "x": 547,
-   "y": 296.7,
-   "type": "normal",
-   "label": "71"
-  },
-  {
-   "id": 72,
-   "x": 571.9,
-   "y": 275.8,
-   "type": "normal",
-   "label": "72"
-  },
-  {
-   "id": 73,
-   "x": 603.9,
-   "y": 270.3,
-   "type": "normal",
-   "label": "73"
-  },
-  {
-   "id": 74,
-   "x": 634.3,
-   "y": 281.7,
-   "type": "normal",
-   "label": "74"
-  },
-  {
-   "id": 75,
-   "x": 654.7,
-   "y": 307,
-   "type": "aktion",
-   "label": "75"
-  },
-  {
-   "id": 76,
-   "x": 659.6,
-   "y": 339.1,
-   "type": "normal",
-   "label": "76"
-  },
-  {
-   "id": 77,
-   "x": 648.4,
-   "y": 369.7,
-   "type": "aktion",
-   "label": "77"
-  },
-  {
-   "id": 78,
-   "x": 633.7,
-   "y": 399.1,
-   "type": "normal",
-   "label": "78"
-  },
-  {
-   "id": 79,
-   "x": 619,
-   "y": 428.5,
-   "type": "normal",
-   "label": "79"
-  },
-  {
-   "id": 80,
-   "x": 605.3,
-   "y": 458.3,
-   "type": "rutsche",
-   "label": "80",
-   "to": 67
-  },
-  {
-   "id": 81,
-   "x": 605.1,
-   "y": 490.8,
-   "type": "normal",
-   "label": "81"
-  },
-  {
-   "id": 82,
-   "x": 621.3,
-   "y": 519,
-   "type": "frage",
-   "label": "82"
-  },
-  {
-   "id": 83,
-   "x": 649.5,
-   "y": 535,
-   "type": "normal",
-   "label": "83"
-  },
-  {
-   "id": 84,
-   "x": 682,
-   "y": 534.6,
-   "type": "aktion",
-   "label": "84"
-  },
-  {
-   "id": 85,
-   "x": 709.8,
-   "y": 517.9,
-   "type": "normal",
-   "label": "85"
-  },
-  {
-   "id": 86,
-   "x": 725.3,
-   "y": 489.3,
-   "type": "finanzpolizei",
-   "label": "86"
-  },
-  {
-   "id": 87,
-   "x": 725.7,
-   "y": 456.6,
-   "type": "normal",
-   "label": "87"
-  },
-  {
-   "id": 88,
-   "x": 723.2,
-   "y": 423.9,
-   "type": "frage",
-   "label": "88"
-  },
-  {
-   "id": 89,
-   "x": 720.6,
-   "y": 391.1,
-   "type": "normal",
-   "label": "89"
-  },
-  {
-   "id": 90,
-   "x": 718,
-   "y": 358.3,
-   "type": "normal",
-   "label": "90"
-  },
-  {
-   "id": 91,
-   "x": 716.2,
-   "y": 325.5,
-   "type": "normal",
-   "label": "91"
-  },
-  {
-   "id": 92,
-   "x": 727.2,
-   "y": 295,
-   "type": "normal",
-   "label": "92"
-  },
-  {
-   "id": 93,
-   "x": 752.6,
-   "y": 274.8,
-   "type": "frage",
-   "label": "93"
-  },
-  {
-   "id": 94,
-   "x": 784.8,
-   "y": 270.6,
-   "type": "normal",
-   "label": "94"
-  },
-  {
-   "id": 95,
-   "x": 814.4,
-   "y": 283.9,
-   "type": "aktion",
-   "label": "95"
-  },
-  {
-   "id": 96,
-   "x": 832.8,
-   "y": 310.7,
-   "type": "normal",
-   "label": "96"
-  },
-  {
-   "id": 97,
-   "x": 834.6,
-   "y": 343.1,
-   "type": "normal",
-   "label": "97"
-  },
-  {
-   "id": 98,
-   "x": 827,
-   "y": 375.1,
-   "type": "normal",
-   "label": "98"
-  },
-  {
-   "id": 99,
-   "x": 819.4,
-   "y": 407,
-   "type": "rutsche",
-   "label": "99",
-   "to": 89
-  },
-  {
-   "id": 100,
-   "x": 811.8,
-   "y": 439,
-   "type": "normal",
-   "label": "100"
-  },
-  {
-   "id": 101,
-   "x": 808,
-   "y": 512,
-   "type": "ziel",
-   "label": "ZIEL"
-  }
- ]
+  ],
+  "countLabels": [
+    {
+      "kind": "action",
+      "x": 675.1,
+      "y": 82.1,
+      "w": 7.9,
+      "h": 6.8,
+      "size": 5.9,
+      "bg": "#ffffff",
+      "color": "#232325"
+    },
+    {
+      "kind": "question",
+      "x": 670.4,
+      "y": 101.9,
+      "w": 6.8,
+      "h": 6.8,
+      "size": 5.9,
+      "bg": "#fefefe",
+      "color": "#242424"
+    },
+    {
+      "kind": "action",
+      "x": 640.6,
+      "y": 227.5,
+      "w": 6.8,
+      "h": 5.4,
+      "size": 4.0,
+      "bg": "#fff0a2",
+      "color": "#81550a"
+    },
+    {
+      "kind": "question",
+      "x": 793.6,
+      "y": 227.5,
+      "w": 5.6,
+      "h": 5.4,
+      "size": 4.0,
+      "bg": "#e5d0fb",
+      "color": "#2a2b63"
+    }
+  ],
+  "_hinweis_countLabels": "Überdeckt die gedruckten Kartenzahlen auf der Brettgrafik mit der aktuellen Stapelgröße (Koordinaten wie fields)."
 }

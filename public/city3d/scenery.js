@@ -136,9 +136,10 @@ export function buildCity(scene, layout, board) {
   ground.translate(cx, 0, cz);
   addGeo(solid, ground, '#63b85c');
 
-  ribbon(solid, pts, 2.7, 0.035, '#efe4d2');
-  ribbon(solid, pts, 1.95, 0.055, '#c5bfb4');
-  ribbon(solid, pts, 1.55, 0.08, '#3d4452');
+  ribbon(solid, pts, 2.05, 0.03, '#7dce6a');
+  ribbon(solid, pts, 1.55, 0.045, '#efe4d2');
+  ribbon(solid, pts, 1.15, 0.06, '#c9c3b6');
+  ribbon(solid, pts, 0.82, 0.08, '#3a4150');
 
   const tileColor = {
     start: colors.start || '#2e9e5b',
@@ -153,9 +154,9 @@ export function buildCity(scene, layout, board) {
   for (const p of pts) {
     const col = tileColor[p.type] || tileColor.normal;
     const big = p.type === 'start' || p.type === 'ziel';
-    const rad = big ? 0.92 : 0.7;
-    addCyl(solid, rad + 0.08, rad + 0.08, 0.08, p.x, 0.08, p.z, '#fff6e4', 12);
-    addCyl(solid, rad, rad * 0.92, 0.2, p.x, 0.2, p.z, col, 12);
+    const rad = big ? 1.28 : 1.05;
+    addCyl(solid, rad + 0.16, rad + 0.16, 0.07, p.x, 0.1, p.z, '#ffe28a', 14);
+    addCyl(solid, rad, rad * 0.94, 0.28, p.x, 0.26, p.z, col, 14);
   }
 
   const npcs = [];

@@ -392,6 +392,7 @@ export function mountCity(canvas, board, opts = {}) {
     }
     const follow = followPawn();
     built.insideIndex = follow ? follow.index : -1;
+    built.pulseIndex = follow ? (follow.hop ? follow.hop.to : follow.target) : -1;
     ring.visible = !!(follow && follow.mode === 'free');
     if (follow && ring.visible) ring.position.set(follow.pos.x, TILE_Y + 0.05, follow.pos.z);
 
