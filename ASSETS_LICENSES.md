@@ -1,12 +1,22 @@
 # Lizenzen der 3D-Modelle
 
-Gebäude, Straße, Wiese, Park und Bahnhof sind im Spiel selbst gebaut (Papercraft und Toon, keine Fremdgeometrie).
+Gebäude, Felder, Vegetation, Park, Bahnhof, Zug und die Spielfiguren kommen aus der Art-Director-Lieferung. Die eingebetteten Atlas-Kopien sind aus den Umgebungs-GLBs entfernt; im Spiel liegt eine gemeinsame Textur.
 
-## Quaternius
+- Umgebung: `public/city3d/models/br/` (`LIZENZEN.md`, `LISTE.md`, `EINBAU.md`)
+- Figuren: `public/city3d/models/figuren/` (`LISTE.md`, `EINBAU_FIGUREN.md`)
 
-Ultimate Animated Character Pack, November 2019. **CC0 1.0**.
+## Eigene Modelle
 
-- https://quaternius.com/packs/ultimatedanimatedcharacter.html
-- Spiegel: https://opengameart.org/content/animated-characters-pack
+Kartonboxen, Zelle, Park, Bahnhof, Zug, Feldkacheln, Vegetation, Wolken, Bank, Laterne, Handschellen, Haftnotiz und die Texturen sind projekteigen und frei nutzbar. Details in `public/city3d/models/br/LIZENZEN.md`.
 
-Die Figuren liegen unter `public/city3d/models/quaternius/`. Enthalten sind unter anderem Idle, Walk, Walk_Carry, Victory, SitDown, StandUp, PickUp und Punch. Die GLBs sind nach glTF 2 gewandelt (Assimp), die Animationen bleiben erhalten. Im Spiel bekommen sie ein Toon-Material und eine Tusche-Kontur, die Kleidung die Farbe des Spielers oder des Berufs.
+## KayKit (CC0)
+
+Einzelne Möbel, Küchenteile und Autos stammen aus KayKit von Kay Lousberg (kaylousberg.com), Lizenz CC0. Sie sind in die eigenen Meshes gemergt und auf den gemeinsamen Atlas gelegt.
+
+## Figuren
+
+Die 24 Figuren, der Baukasten-Look und die eigenen Arbeits-Clips sind projekteigen. Das Rig und ein Teil der Clips stammen aus der Quaternius Universal Animation Library (CC0). Die früheren Quaternius-Charakter-GLBs unter `public/city3d/models/quaternius/` werden nicht mehr geladen.
+
+## Schriften in den Texturen
+
+Permanent Marker (Apache 2.0) ist in Schildern, Feldsymbolen und Feldnummern eingebrannt. Kalam (OFL 1.1) nur im Kontaktblatt der Lieferung, das nicht im Repo liegt.

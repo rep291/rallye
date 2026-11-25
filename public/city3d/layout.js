@@ -2,7 +2,7 @@
 // Typ, Rutsche (to) und Finanzpolizei kommen von den Feldern aus config/board.json.
 // Neue Rutschen und Polizeifelder erscheinen, sobald sie dort stehen.
 
-export const TILE_Y = 0.36;
+export const TILE_Y = 0.2;
 export const PAGE = { w: 48, d: 34 };
 export const ZONE_GAP = 80;
 
@@ -87,7 +87,9 @@ function paths() {
       { a: [8, 17], b: [20, 17], n: 8 },
       { a: [20, 17], b: [26, 14], n: 4 },
       { a: [26, 14], b: [38, 14], n: 8 },
-      { a: [38, 14], b: [41, 22], n: 4 },
+      { a: [38, 14], b: [42.6, 14], n: 2 },
+      { a: [42.6, 14], b: [42.6, 19], n: 2 },
+      { a: [42.6, 19], b: [39, 24], n: 2 },
     ]),
     2: chain([
       { a: [3, 22], b: [12, 14], n: 8 },
@@ -102,43 +104,82 @@ function paths() {
       { a: [8, 23], b: [18, 23], n: 7 },
       { a: [18, 23], b: [28, 20], n: 4 },
       { a: [28, 20], b: [40, 17], n: 6 },
-      { a: [40, 17], b: [32, 12], n: 4 },
-      { a: [32, 12], b: [24, 10], n: 2 },
-      { a: [24, 10], b: [10, 8], n: 4 },
+      { a: [40, 17], b: [43.5, 16.1], n: 2 },
+      { a: [43.5, 16.1], b: [44, 11], n: 2 },
+      { a: [44, 11], b: [36, 10.2], n: 2 },
+      { a: [36, 10.2], b: [27.4, 9.9], n: 2 },
+      { a: [27.4, 9.9], b: [14, 8], n: 4 },
     ]),
-    4: chain([
-      { a: [4, 22], b: [8, 22], n: 2 },
-      { a: [8, 22], b: [10, 18], n: 2 },
-      { a: [10, 18], b: [12, 22], n: 3 },
-      { a: [12, 22], b: [22, 22], n: 6 },
-      { a: [22, 22], b: [24, 16], n: 2 },
-      { a: [24, 16], b: [28, 18], n: 4 },
-      { a: [28, 18], b: [38, 17], n: 5 },
-      { a: [38, 17], b: [40, 12], n: 2 },
-      { a: [40, 12], b: [34, 22], n: 7 },
-      { a: [34, 22], b: [43, 25], n: 2 },
-    ]),
+    // Zone 4: Krankenhaus und Werkstatt liegen auf geraden Stücken,
+    // der Weg läuft durch die Türen und knickt nicht in die Wände zurück.
+    4: [
+      [4.2, 25.5], [7.6, 25.5], [11, 25.5],
+      [13.2, 23.6], [14.6, 22],
+      [16.6, 22], [18.7, 22], [20.8, 22], [22.9, 22], [25, 22],
+      [28.8, 22],
+      [31.2, 20.2], [33.2, 18.4], [34.4, 17],
+      [36.5, 17], [38.7, 17], [40.9, 17], [43.1, 17],
+      [46.2, 17],
+      [46.2, 13], [43.2, 10], [38.6, 8],
+      [33.6, 8.4], [29.2, 11], [26.2, 15], [33, 21.5],
+    ],
   };
 }
 
-function boxAround(pts) {
+/** Box entlang der Felder. +X der Datei zeigt von Weg_Eingang nach Weg_Ausgang. */
+export function shopPose(pts) {
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  const dx = b.lx - a.lx;
+  const dz = b.lz - a.lz;
+  const span = Math.hypot(dx, dz) || 1;
+  const tx = dx / span;
+  const tz = dz / span;
+  const yaw = Math.atan2(-tz, tx);
+  const scaleX = Math.min(1.25, Math.max(0.8, (span + 2.6) / 9.6));
+  const lx = (a.lx + b.lx) / 2;
+  const lz = (a.lz + b.lz) / 2;
+  const hx = (10.2 * scaleX) / 2;
+  const hz = 3.5;
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const p of pts) {
-    minX = Math.min(minX, p.lx);
-    maxX = Math.max(maxX, p.lx);
-    minZ = Math.min(minZ, p.lz);
-    maxZ = Math.max(maxZ, p.lz);
+  for (const x of [-hx, hx]) {
+    for (const z of [-hz, hz]) {
+      const wx = lx + x * c + z * s;
+      const wz = lz - x * s + z * c;
+      minX = Math.min(minX, wx);
+      maxX = Math.max(maxX, wx);
+      minZ = Math.min(minZ, wz);
+      maxZ = Math.max(maxZ, wz);
+    }
   }
-  const alongX = (maxX - minX) >= (maxZ - minZ);
-  const length = Math.max(7.2, (alongX ? maxX - minX : maxZ - minZ) + 2.4);
-  const depth = 6.6;
   return {
-    cx: (minX + maxX) / 2,
-    cz: (minZ + maxZ) / 2,
-    length,
-    depth,
-    alongX,
+    lx, lz, yaw, scaleX, span, tx, tz,
+    length: maxX - minX,
+    depth: maxZ - minZ,
+    alongX: Math.abs(tx) >= Math.abs(tz),
   };
+}
+
+/** true, wenn der Punkt in der Wand liegt und nicht im Tür-Korridor (|z| < 1). */
+export function missesDoor(b, x, z) {
+  const dx = x - b.lx;
+  const dz = z - b.lz;
+  const c = Math.cos(b.yaw);
+  const s = Math.sin(b.yaw);
+  const lx = dx * c - dz * s;
+  const lz = dx * s + dz * c;
+  const half = 4.7 * (b.scaleX || 1);
+  return Math.abs(lx) < half && Math.abs(lz) > 1.05 && Math.abs(lz) < 3.35;
+}
+
+export function corridorOffset(b, x, z) {
+  const dx = x - b.lx;
+  const dz = z - b.lz;
+  const c = Math.cos(b.yaw);
+  const s = Math.sin(b.yaw);
+  return dx * s + dz * c;
 }
 
 function slotsAt(lx, lz) {
@@ -198,7 +239,7 @@ export function buildLayout(fields) {
 
   const buildings = SHOPS.map(shop => {
     const inside = points.filter(p => p.id >= shop.from && p.id <= shop.to);
-    const box = boxAround(inside);
+    const pose = shopPose(inside);
     const ox = (shop.zone - 1) * ZONE_GAP;
     for (const p of inside) {
       if (p.type3d === 'finanzpolizei' || p.type === 'finanzpolizei') continue;
@@ -206,11 +247,9 @@ export function buildLayout(fields) {
     }
     return {
       ...shop,
-      ...box,
-      lx: box.cx,
-      lz: box.cz,
-      cx: box.cx + ox,
-      cz: box.cz,
+      ...pose,
+      cx: pose.lx + ox,
+      cz: pose.lz,
     };
   });
 

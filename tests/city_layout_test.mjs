@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { buildLayout, kartenStimmung, zoneOf, visualType } from '../public/city3d/layout.js';
+import { buildLayout, corridorOffset, kartenStimmung, missesDoor, zoneOf, visualType } from '../public/city3d/layout.js';
 
 const board = JSON.parse(fs.readFileSync(new URL('../config/board.json', import.meta.url), 'utf8'));
 const layout = buildLayout(board.fields);
@@ -17,7 +17,29 @@ for (const p of layout.points) counts[p.zone]++;
 assert.deepEqual(counts, { 1: 26, 2: 25, 3: 25, 4: 26 });
 
 assert.equal(layout.prisons.length, 3, 'eine Zelle in Zone 2, 3 und 4');
+assert.equal(layout.slides.length, 12, 'zwölf Rutschen aus dem Brett');
+
+for (const b of layout.buildings) {
+  const own = layout.points.filter(p => p.id >= b.from && p.id <= b.to);
+  for (const p of own) {
+    assert.ok(Math.abs(corridorOffset(b, p.lx, p.lz)) < 0.45, b.id + ' Feld ' + p.id + ' verlässt den Korridor');
+  }
+  const foreign = layout.points.filter(p => p.zone === b.zone && (p.id < b.from || p.id > b.to));
+  for (const p of foreign) {
+    assert.equal(missesDoor(b, p.lx, p.lz), false, 'Feld ' + p.id + ' läuft durch die Wand von ' + b.name);
+  }
+  for (let i = 0; i < layout.points.length - 1; i++) {
+    const a = layout.points[i];
+    const c = layout.points[i + 1];
+    if (a.zone !== b.zone || c.zone !== b.zone) continue;
+    const mx = (a.lx + c.lx) / 2;
+    const mz = (a.lz + c.lz) / 2;
+    const insideShop = (a.id >= b.from && a.id <= b.to) || (c.id >= b.from && c.id <= b.to);
+    if (!insideShop) assert.equal(missesDoor(b, mx, mz), false, 'Weg ' + a.id + '-' + c.id + ' durch ' + b.name);
+  }
+}
 const fp = board.fields.filter(f => f.type === 'finanzpolizei').map(f => f.id);
+assert.deepEqual(fp, [33, 53, 62, 72, 78, 86, 94]);
 for (const id of fp) {
   const pt = layout.points.find(p => p.id === id);
   assert.equal(pt.building, null, 'Finanzpolizei liegt nicht in einer Box, Feld ' + id);
@@ -41,10 +63,11 @@ const slides = board.fields.filter(f => f.type === 'rutsche');
 assert.equal(layout.slides.length, slides.length);
 for (const s of layout.slides) assert.ok(s.indices.includes(s.field) && s.indices.includes(s.to));
 
-assert.equal(visualType(100), 'frage');
-assert.equal(visualType(99), 'rutsche');
-assert.equal(visualType(21), 'rutsche');
-assert.equal(visualType(53), 'finanzpolizei');
+const fieldOf = id => board.fields.find(f => f.id === id);
+assert.equal(visualType(100, fieldOf(100)), 'frage');
+assert.equal(visualType(99, fieldOf(99)), 'rutsche');
+assert.equal(visualType(21, fieldOf(21)), 'rutsche');
+assert.equal(visualType(53, fieldOf(53)), 'finanzpolizei');
 assert.equal(layout.points.find(p => p.id === 99).slideTo, 87);
 
 assert.equal(kartenStimmung('3 Felder vor'), 'gut');

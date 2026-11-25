@@ -1,14 +1,13 @@
 // 3D-Flipchart. Nur die Zone des aktiven Spielers wird gezeichnet.
 // Spiellogik bleibt auf dem Server, hier ist nur die Darstellung.
 import * as THREE from 'three';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
-  buildLayout, TILE_Y, yawFacing, zoneOf, ZONE_NAME, PAGE,
+  buildLayout, TILE_Y, zoneOf, ZONE_NAME, PAGE,
 } from './layout.js';
 import { buildZone, applyDecor } from './zonebuild.js';
+import { loadCityLib } from './assets.js';
 import {
-  createPlayerVisual, updateVisual, createLoader, makeNameSprite, equipFromLibrary,
-  paintCharacter, makePerson, setCuffs,
+  createPlayerVisual, updateVisual, createLoader, makeNameSprite, setCuffs,
 } from './figures.js';
 
 const PRESETS = {
@@ -17,19 +16,8 @@ const PRESETS = {
   hoch: { dpr: 1.25, npcs: 3, fill: 1, decor: 1, puffs: 8 },
 };
 const DPR_CAP = 1.25;
-const Q = '/city3d/models/quaternius/';
-const CHAR_FILES = {
-  Casual_Male: Q + 'Casual_Male.glb',
-  Casual_Female: Q + 'Casual_Female.glb',
-  Casual2_Male: Q + 'Casual2_Male.glb',
-  Worker_Male: Q + 'Worker_Male.glb',
-  Worker_Female: Q + 'Worker_Female.glb',
-  Chef_Male: Q + 'Chef_Male.glb',
-  Chef_Female: Q + 'Chef_Female.glb',
-  Doctor_Male_Young: Q + 'Doctor_Male_Young.glb',
-  Doctor_Female_Young: Q + 'Doctor_Female_Young.glb',
-  Suit_Male: Q + 'Suit_Male.glb',
-};
+const FIG_SCALE = 1.35;
+const Y180 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
 const TYPE_DE = {
   start: 'Start', ziel: 'Ziel', normal: 'Weg', aktion: 'Aktion',
@@ -38,40 +26,41 @@ const TYPE_DE = {
 
 const SHOP_JOBS = {
   schlosserei: [
-    { model: 'Worker_Male', tint: '#3d5a8a', steps: [['walk', 1.3], ['punch', 1.2, 'spark'], ['wait', 1.1], ['pickup', 0.8]] },
-    { model: 'Worker_Female', tint: '#e08a2c', steps: [['walk', 1.2], ['pickup', 0.8], ['carry', 1.3], ['wait', 1.0]] },
+    { fig: 'NPC_Schlosser', clip: 'Hammer', prop: 'Prop_Hammer', socket: 'Socket_Hand_R', at: 'Station_Amboss', vfx: 'spark' },
+    { fig: 'NPC_Schlosser', clip: 'Weld', prop: 'Prop_Schweissbrenner', socket: 'Socket_Hand_R', at: 'Station_Werkbank', vfx: 'spark' },
   ],
   kueche: [
-    { model: 'Chef_Male', tint: '#f4f7fb', steps: [['walk', 1.1], ['wait', 1.8, 'steam'], ['pickup', 0.8], ['walk', 1.0]] },
-    { model: 'Chef_Female', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 1.8, 'steam'], ['pickup', 0.7]] },
+    { fig: 'NPC_Koch', clip: 'Stir', prop: 'Prop_Kochloeffel', socket: 'Socket_Hand_R', at: 'Station_Herd', vfx: 'steam' },
+    { fig: 'NPC_Koch', clip: 'Chop', prop: 'Prop_Messer', socket: 'Socket_Hand_R', at: 'Station_Brett' },
   ],
   labor: [
-    { model: 'Doctor_Female_Young', tint: '#e7eef8', steps: [['walk', 1.2], ['wait', 1.8, 'steam'], ['pickup', 0.8]] },
-    { model: 'Doctor_Male_Young', tint: '#e7eef8', steps: [['walk', 1.3], ['wait', 1.6, 'steam'], ['walk', 1.1]] },
+    { fig: 'NPC_Laborantin', clip: 'Pipette', prop: 'Prop_Pipette', socket: 'Socket_Hand_R', at: 'Station_Tisch', vfx: 'steam' },
+    { fig: 'NPC_Laborantin', clip: 'Examine', prop: 'Prop_Reagenzglas', socket: 'Socket_Hand_L', at: 'Station_Geraet' },
   ],
   lager: [
-    { model: 'Worker_Female', tint: '#c48a2a', steps: [['walk', 1.1], ['pickup', 0.8], ['carry', 1.4], ['wait', 1.0]] },
-    { model: 'Casual2_Male', tint: '#3d7ff2', steps: [['walk', 1.2], ['wait', 1.8], ['walk', 1.0]] },
+    { fig: 'NPC_Lagerist', clip: 'CarryIdle', prop: 'Prop_Kiste', socket: 'DEF-spine003', at: 'Station_Kiste' },
+    { fig: 'NPC_Lagerist', clip: 'Clipboard', prop: 'Prop_Klemmbrett', socket: 'Socket_Hand_L', at: 'Station_Palette' },
   ],
   buero: [
-    { model: 'Suit_Male', tint: '#2c4d86', steps: [['sit', 4.5], ['walk', 1.2], ['pickup', 0.8]] },
-    { model: 'Casual_Female', tint: '#4363d8', steps: [['walk', 1.3], ['wait', 2.2], ['walk', 1.1]] },
+    { fig: 'NPC_Buero', clip: 'Type', at: 'Station_Schreibtisch_Sitz' },
+    { fig: 'NPC_Buero', clip: 'SitIdle', at: 'Station_Schreibtisch2_Sitz' },
   ],
   friseur: [
-    { model: 'Chef_Female', tint: '#c45b8a', steps: [['walk', 1.2], ['wait', 2.0], ['punch', 0.6], ['wait', 1.2]] },
-    { model: 'Casual_Female', tint: '#f6e7ee', steps: [['sit', 8]] },
+    { fig: 'NPC_Friseurin', clip: 'Haircut', prop: 'Prop_Schere', socket: 'Socket_Hand_R', at: 'Station_Stylist_1' },
+    { fig: 'NPC_Passantin_Kleid', clip: 'SitIdle', at: 'Kunde_Sitz_1' },
   ],
   baustelle: [
-    { model: 'Worker_Male', tint: '#e0b04a', steps: [['walk', 1.2], ['punch', 1.4, 'spark'], ['wait', 1.0]] },
-    { model: 'Worker_Female', tint: '#f2c14a', steps: [['pickup', 0.8], ['carry', 1.4], ['wait', 1.1]] },
+    { fig: 'NPC_Bauarbeiter', clip: 'Hammer', prop: 'Prop_Hammer', socket: 'Socket_Hand_R', at: 'Station_Geruest', vfx: 'spark' },
+    { fig: 'NPC_Bauarbeiter', clip: 'CarryIdle', at: 'Station_Balken_Auf' },
   ],
   krankenhaus: [
-    { model: 'Doctor_Female_Young', tint: '#f7f7f5', steps: [['walk', 1.3], ['wait', 1.8], ['pickup', 0.8], ['walk', 1.1]] },
-    { model: 'Doctor_Male_Young', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 2.0], ['walk', 1.2]] },
+    { fig: 'NPC_Aerztin', clip: 'Examine', at: 'Station_Tresen' },
+    { fig: 'NPC_Passant_Senior', clip: 'LieIdle', at: 'Patient_1' },
+    { fig: 'NPC_Pfleger', clip: 'CarryIdle', prop: 'Prop_Tablett', socket: 'DEF-spine003', at: 'Station_Schrank' },
   ],
   autowerkstatt: [
-    { model: 'Worker_Male', tint: '#1f7a45', steps: [['walk', 1.2], ['wait', 1.6], ['punch', 1.2, 'spark'], ['wait', 0.8]] },
-    { model: 'Casual2_Male', tint: '#3d7ff2', steps: [['pickup', 0.8], ['carry', 1.5], ['wait', 1.2]] },
+    { fig: 'NPC_Mechanikerin', clip: 'KneelFix', prop: 'Prop_Schraubenschluessel', socket: 'Socket_Hand_R', at: 'Station_Haube', vfx: 'spark' },
+    { fig: 'NPC_Mechanikerin', clip: 'CarryIdle', at: 'Station_Reifenstapel' },
   ],
 };
 
@@ -103,9 +92,9 @@ export function mountCity(canvas, board, opts = {}) {
   const scene = new THREE.Scene();
   scene.background = skyTexture();
   scene.fog = new THREE.Fog(0xf7f1e3, 70, 150);
-  scene.add(new THREE.HemisphereLight(0xfff3e4, 0x7fba45, 0.92));
-  const sun = new THREE.DirectionalLight(0xffe0a8, 1.45);
-  sun.position.set(10, 26, 22);
+  scene.add(new THREE.HemisphereLight(0xe4f1fa, 0x8fcf5a, 0.9));
+  const sun = new THREE.DirectionalLight(0xfff4e4, 2.2);
+  sun.position.set(-12, 18, 14);
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xfff1d6, 0);
   fill.position.set(-12, 14, 18);
@@ -114,15 +103,25 @@ export function mountCity(canvas, board, opts = {}) {
 
   let layout = buildLayout(board.fields || []);
   const pages = {};
+  function blankPage(z) {
+    const pivot = new THREE.Group();
+    const content = new THREE.Group();
+    pivot.position.set(PAGE.w / 2, 0, PAGE.d);
+    content.position.set(-PAGE.w / 2, 0, -PAGE.d);
+    pivot.add(content);
+    pivot.userData.zone = z;
+    pivot.userData.content = content;
+    return pivot;
+  }
   for (const z of [1, 2, 3, 4]) {
-    pages[z] = buildZone(layout, z);
+    pages[z] = blankPage(z);
     scene.add(pages[z]);
   }
 
   const players = new Map();
   const pins = [];
   const npcs = [];
-  let chars = null;
+  let lib = null;
   let state = null;
   let active = 1;
   let flip = null;
@@ -141,14 +140,20 @@ export function mountCity(canvas, board, opts = {}) {
   let slideSeq = '';
   let shot = null;
   const loader = createLoader();
-  const catalog = { scaleToHeight: 1.7, clips: { idle: ['idle'], walk: ['walk'], sit: ['sitdown'], cheer: ['victory'] } };
+  const catalog = { scaleToHeight: 1.58, clips: { idle: ['idle'], walk: ['walk'], sit: ['sitidle'], cheer: ['victory'] } };
   const camPos = new THREE.Vector3(8, 16, 22);
   const lookPos = new THREE.Vector3(PAGE.w / 2, 0, PAGE.d / 2);
   const _desired = new THREE.Vector3();
   const _look = new THREE.Vector3();
   const _wp = new THREE.Vector3();
 
-  loadChars(loader).then(lib => { chars = lib; for (const p of players.values()) dress(p); refreshNpcs(); }).catch(err => console.warn(err));
+  const ready = loadCityLib().then((loaded) => {
+    lib = loaded;
+    rebuild({ fields: board.fields || [] });
+    for (const p of players.values()) dress(p);
+    refreshNpcs();
+    return loaded;
+  }).catch((err) => { console.warn(err); throw err; });
 
   showOnly(1);
   applyTier();
@@ -156,9 +161,10 @@ export function mountCity(canvas, board, opts = {}) {
   function contentOf(z) { return pages[z].userData.content; }
 
   function showOnly(z) {
+    const changed = active !== z;
     for (const k of [1, 2, 3, 4]) pages[k].visible = k === z;
     active = z;
-    refreshNpcs();
+    if (changed || !npcs.length) refreshNpcs();
   }
 
   function localPoint(id) {
@@ -208,8 +214,9 @@ export function mountCity(canvas, board, opts = {}) {
   }
 
   function dress(pawn) {
+    if (!lib) return;
     const player = { id: pawn.id, figure: pawn.figure, color: pawn.color || '#E6197E', name: '' };
-    if (chars) equipFromLibrary(pawn.visual, { chars }, player);
+    lib.equip(pawn.visual, player, { outline: tier === 'niedrig' ? 0 : 0.016, scale: FIG_SCALE, lod: tier === 'hoch' ? 0 : 1 });
   }
 
   function placeImmediate(pawn, id, jailed) {
@@ -279,19 +286,12 @@ export function mountCity(canvas, board, opts = {}) {
 
   function showCuffs(pawn, on) {
     if (pawn.visual && pawn.visual.placeholder) setCuffs(pawn.visual.placeholder, on);
-    if (!pawn.cuffBits && pawn.visual) {
-      const g = new THREE.Group();
-      const mat = new THREE.MeshBasicMaterial({ color: '#e4e8ee' });
-      const geo = new THREE.TorusGeometry(0.09, 0.025, 5, 8);
-      const a = new THREE.Mesh(geo, mat);
-      const b = new THREE.Mesh(geo, mat);
-      a.position.set(-0.18, 0.95, -0.1);
-      b.position.set(0.18, 0.95, -0.1);
-      g.add(a, b);
-      pawn.visual.root.add(g);
-      pawn.cuffBits = g;
+    const model = pawn.visual && pawn.visual.figureRoot;
+    if (lib && model && !model.userData.cuffs) {
+      model.userData.cuffs = lib.attachProp(model, 'Prop_Handschellen', 'Socket_Hand_R');
+      if (model.userData.cuffs) model.userData.cuffs.visible = false;
     }
-    if (pawn.cuffBits) pawn.cuffBits.visible = !!on;
+    if (model && model.userData.cuffs) model.userData.cuffs.visible = !!on;
   }
 
   function driveCar(car, from, to, u) {
@@ -322,9 +322,12 @@ export function mountCity(canvas, board, opts = {}) {
       else if (pawn.mode === 'arrest') stepArrest(pawn, dt);
       else if (pawn.mode === 'release') stepRelease(pawn, dt);
       else if (pawn.mode === 'cell' && pawn.slotPos) pawn.pos.set(pawn.slotPos.lx, TILE_Y, pawn.slotPos.lz);
-      const poseMode = pawn.mode === 'cell' || (pawn.mode === 'arrest' && pawn.phaseT > 4.2) ? 'sit'
-        : (pawn.hop || pawn.mode === 'arrest' || pawn.mode === 'release') ? 'walk' : 'idle';
+      const poseMode = pawn.mode === 'cell' ? 'prisonersit'
+        : pawn.mode === 'arrest' && pawn.phaseT >= 2.3 && pawn.phaseT < 6.1 ? 'prisonerwalk'
+        : pawn.mode === 'arrest' && pawn.phaseT >= 1.4 ? 'prisoneridle'
+        : (pawn.hop || pawn.mode === 'release') ? 'walk' : 'idle';
       updateVisual(pawn.visual, poseMode, now / 1000, dt, catalog);
+      stepOfficer(pawn, poseMode, dt);
       pawn.visual.root.position.copy(pawn.pos);
       pawn.visual.root.rotation.y = pawn.yaw;
       const away = zoneOf(pawn.target) !== active && pawn !== focus;
@@ -376,8 +379,7 @@ export function mountCity(canvas, board, opts = {}) {
       parentTo(pawn, f.zone);
     }
     const len = Math.hypot(pawn.face.x, pawn.face.y) || 1;
-    const aim = yawFacing(pawn.face.x / len, pawn.face.y / len);
-    pawn.yaw = damp(pawn.yaw, aim, dt);
+    pawn.yaw = damp(pawn.yaw, Math.atan2(pawn.face.x / len, pawn.face.y / len), dt);
   }
 
   function startHop(pawn, from, to, slide) {
@@ -424,8 +426,43 @@ export function mountCity(canvas, board, opts = {}) {
       }
     }
     pawn.face.set((door.lx - pawn.pos.x) || 0.01, (door.lz - pawn.pos.z) || 0);
-    pawn.yaw = yawFacing(pawn.face.x, pawn.face.y);
+    pawn.yaw = Math.atan2(pawn.face.x, pawn.face.y);
+    const doorMesh = contentOf(f.zone).userData.cellDoor;
+    if (doorMesh) {
+      const open = t > 4.6 && t < 6.4 ? Math.min(1, (t - 4.6) / 0.4) : (t >= 6.4 ? 0 : 0);
+      doorMesh.rotation.y = -1.75 * (t >= 6.2 ? Math.max(0, 1 - (t - 6.2) / 0.4) : open);
+    }
     parentTo(pawn, f.zone);
+  }
+
+  function stepOfficer(pawn, poseMode, dt) {
+    if (!lib) return;
+    const escort = poseMode === 'prisoneridle' || poseMode === 'prisonerwalk';
+    if (escort && !pawn.officer) {
+      pawn.officer = lib.spawn('NPC_Polizist', { lod: 1, outline: tier === 'niedrig' ? 0 : 0.014, scale: FIG_SCALE });
+      pawn.officer.root.scale.setScalar(1);
+      contentOf(pawn.zone || active).add(pawn.officer.root);
+    }
+    if (!pawn.officer) return;
+    if (!escort) {
+      pawn.officer.root.removeFromParent();
+      pawn.officer = null;
+      return;
+    }
+    const lead = 0.35 * FIG_SCALE;
+    const dir = pawn.face.lengthSq() ? pawn.face.clone().normalize() : new THREE.Vector2(0, 1);
+    pawn.officer.root.position.set(pawn.pos.x - dir.x * lead, pawn.pos.y, pawn.pos.z - dir.y * lead);
+    pawn.officer.root.rotation.y = pawn.yaw;
+    const clip = poseMode === 'prisonerwalk' ? 'Lead' : 'Cuff';
+    if (pawn.officer.mixer && pawn.officer.clip !== clip) {
+      pawn.officer.clip = clip;
+      pawn.officer.play(clip, { loop: clip === 'Lead' });
+    }
+    if (pawn.officer.mixer) pawn.officer.mixer.update(dt || 0);
+    if (pawn.officer.parentZone !== pawn.zone) {
+      contentOf(pawn.zone).add(pawn.officer.root);
+      pawn.officer.parentZone = pawn.zone;
+    }
   }
 
   function stepRelease(pawn, dt) {
@@ -502,17 +539,16 @@ export function mountCity(canvas, board, opts = {}) {
       _look.set(b.lx - (along ? 0.4 : 0), 1.15, b.lz);
     } else if (shot === 'festnahme') {
       const f = layout.points.find(p => p.zone === 2 && p.type3d === 'finanzpolizei') || layout.points.find(p => p.zone === 2);
-      const jail = layout.prisons.find(j => j.zone === 2);
-      const mx = (f.lx + (jail ? jail.lx : f.lx)) * 0.5 + 1.2;
-      const mz = (f.lz + (jail ? jail.lz : f.lz)) * 0.5;
-      _desired.set(mx + 4.5, 6.2, mz + 10.5);
-      _look.set(mx, 0.85, mz);
+      _desired.set(f.lx + 2.4, 4.4, f.lz + 6.2);
+      _look.set(f.lx + 0.3, 1.05, f.lz + 0.2);
     } else if (shot === 'park') {
-      _desired.set(14, 7.2, 13.5);
-      _look.set(22, 0.7, 5.6);
+      const p = contentOf(2).userData.park || { x: 20, z: 6.2 };
+      _desired.set(p.x - 1, 8.2, p.z + 11);
+      _look.set(p.x, 1.1, p.z);
     } else if (shot === 'bahnhof') {
-      _desired.set(18, 4.6, 13.2);
-      _look.set(32, 1.15, 6.4);
+      const p = contentOf(4).userData.station || { x: 18, z: 4.2 };
+      _desired.set(p.x - 2, 6.4, p.z + 12);
+      _look.set(p.x + 2, 1.4, p.z + 1);
     } else {
       _desired.set(16, 20, 44);
       _look.set(26, 0.6, 15);
@@ -524,22 +560,28 @@ export function mountCity(canvas, board, opts = {}) {
     const content = contentOf(2);
     const car = content.userData.policeCar;
     if (car && f) {
-      car.position.set(f.lx + 1.5, 0, f.lz + 0.15);
-      car.rotation.y = Math.PI * 0.85;
+      car.position.set(f.lx + 2.3, 0, f.lz - 1.5);
+      car.rotation.y = Math.PI * 0.5;
     }
-    if (f && !content.userData.demo) {
-      const person = makePerson({ shirt: '#E6197E', pants: '#243044', hair: '#241c18' });
-      person.position.set(f.lx, -0.06, f.lz);
-      person.rotation.y = -0.6;
-      setCuffs(person, true);
-      const parts = person.userData.parts;
-      if (parts) {
-        parts.armL.rotation.x = -0.5;
-        parts.armR.rotation.x = -0.5;
-      }
-      content.add(person);
-      content.userData.demo = person;
-    }
+    if (!f || !lib || content.userData.demoMixers) return;
+    const player = lib.spawn('Spieler_A', { lod: 0, color: '#E6197E', outline: 0.016, scale: FIG_SCALE });
+    player.root.position.set(f.lx, TILE_Y, f.lz);
+    player.root.rotation.y = 0;
+    const cop = lib.spawn('NPC_Polizist', { lod: 1, outline: 0.016, scale: FIG_SCALE });
+    cop.root.position.set(f.lx, TILE_Y, f.lz + 0.62);
+    cop.root.rotation.y = Math.PI;
+    content.add(player.root, cop.root);
+    content.userData.demoMixers = [player, cop];
+    player.ready.then(() => {
+      player.play('PrisonerIdle');
+      if (player.mixer) player.mixer.update(0.8);
+      const cuffs = lib.attachProp(player.model, 'Prop_Handschellen', 'Socket_Hand_R');
+      if (cuffs) cuffs.visible = true;
+    });
+    cop.ready.then(() => {
+      cop.play('Cuff');
+      if (cop.mixer) cop.mixer.update(0.62);
+    });
   }
 
   function placeBlobs() {
@@ -634,143 +676,111 @@ export function mountCity(canvas, board, opts = {}) {
 
   function refreshNpcs() {
     clearNpcs();
+    if (!lib) return;
     const preset = PRESETS[tier];
-    const shops = layout.buildings.filter(b => b.zone === active);
-    let budget = 16 - Math.min(6, players.size);
+    const content = contentOf(active);
+    content.updateWorldMatrix(true, true);
+    const shops = (content.userData.shops || []);
+    let budget = 14 - Math.min(4, players.size);
     for (const shop of shops) {
       const jobs = SHOP_JOBS[shop.id] || [];
       const count = Math.min(jobs.length, preset.npcs, budget);
       for (let i = 0; i < count; i++) {
         budget--;
-        npcs.push(makeNpc(jobs[i], shop, i));
+        const actor = makeNpc(jobs[i], shop, content);
+        if (actor) npcs.push(actor);
       }
     }
-    if (preset.fill > 0.5 && budget > 0) spawnFill(active, budget, preset);
-    const content = contentOf(active);
+    if (preset.fill > 0.5 && budget > 0) spawnFill(content, budget, preset);
     for (const n of npcs) content.add(n.root);
   }
 
-  function makeNpc(job, shop, i) {
-    const root = new THREE.Group();
-    const player = { id: shop.id + i, figure: figureFor(job.model), color: job.tint, name: shop.name };
-    const visual = createPlayerVisual(player, catalog, loader);
-    if (chars && chars[job.model]) {
-      const model = cloneSkinned(chars[job.model].scene);
-      stand(model);
-      model.rotation.y = Math.PI;
-      paintCharacter(model, job.tint);
-      visual.tilt.add(model);
-      visual.model = model;
-      visual.mixer = new THREE.AnimationMixer(model);
-      visual.clips = {};
-      for (const clip of chars[job.model].animations || []) visual.clips[clip.name.toLowerCase()] = clip;
-      visual.placeholder.visible = false;
-    } else visual.placeholder.visible = true;
-    root.add(visual.root);
-    const home = { lx: shop.lx + (i ? 1.1 : -1.1), lz: shop.lz + 0.4 };
-    root.position.set(home.lx, 0.12, home.lz);
-    const steps = job.steps.map((s, idx) => ({
-      mode: s[0] === 'sit' ? 'sit' : s[0] === 'punch' ? 'punch' : s[0] === 'pickup' ? 'pickup' : s[0] === 'carry' ? 'carry' : s[0] === 'wait' ? 'idle' : 'walk',
-      dur: s[1],
-      vfx: s[2] || null,
-      to: {
-        lx: shop.lx + Math.cos(idx + i) * 1.4,
-        lz: shop.lz + Math.sin(idx * 1.3) * 1.1,
-      },
-    }));
-    const start = Math.max(0, steps.findIndex(s => s.vfx));
-    return { root, visual, steps, i: start, t: 0.3, from: { ...home }, home, forever: steps.length === 1 && steps[0].mode === 'sit' };
+  function spotOf(root, name, content) {
+    const e = root && root.getObjectByName(name);
+    if (!e) return null;
+    root.updateWorldMatrix(true, true);
+    const v = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    e.getWorldPosition(v);
+    e.getWorldQuaternion(q);
+    content.worldToLocal(v);
+    return { x: v.x, y: v.y, z: v.z, q };
   }
 
-  function figureFor(model) {
-    if (model.startsWith('Chef')) return 'koch';
-    if (model.startsWith('Doctor')) return 'arzt';
-    if (model === 'Suit_Male') return 'buero';
-    if (model.includes('Female') && model.includes('Worker')) return 'lager';
-    return 'mechanik';
+  function makeNpc(job, shop, content) {
+    const spot = spotOf(shop.root, job.at, content);
+    if (!spot) return null;
+    const spawned = lib.spawn(job.fig, { lod: 1, outline: tier === 'niedrig' ? 0 : 0.014, scale: FIG_SCALE });
+    const seat = /Sitz|Patient|Warten|Bett/.test(job.at) || spot.y > 0.35;
+    const drop = job.clip === 'LieIdle' ? 0.14 : 0.2;
+    spawned.root.position.set(spot.x, seat ? Math.max(0, spot.y - drop * FIG_SCALE) : Math.max(0.04, spot.y), spot.z);
+    spawned.root.quaternion.copy(spot.q).multiply(Y180);
+    spawned.ready.then(() => {
+      if (job.prop) lib.attachProp(spawned.model, job.prop, job.socket || 'Socket_Hand_R');
+      spawned.play(job.clip, { loop: job.clip === 'KneelFix' });
+    });
+    return { root: spawned.root, spawned, clip: job.clip, vfx: job.vfx || null, loop: null };
   }
 
-  function stand(obj) {
-    obj.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(obj);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    obj.scale.setScalar(1.7 / (size.y || 1));
-    obj.updateMatrixWorld(true);
-    const fitted = new THREE.Box3().setFromObject(obj);
-    obj.position.y -= fitted.min.y;
-  }
-
-  function spawnFill(zone, budget, preset) {
-    if (zone === 2) {
-      const sit = Math.min(budget, preset.npcs > 1 ? 3 : 2);
-      for (let i = 0; i < sit; i++) npcs.push(fillActor('Casual_Male', '#7CC242', 14 + i * 1.6, 7.4, 'sit', true));
-      if (budget - sit > 0) npcs.push(fillActor('Casual_Female', '#F7931E', 17, 6.2, 'walk', false));
-    }
-    if (zone === 4) {
-      const n = Math.min(budget, preset.fill > 0.8 ? 4 : 2);
-      for (let i = 0; i < n; i++) {
-        npcs.push(fillActor(i % 2 ? 'Casual_Female' : 'Suit_Male', i % 2 ? '#FFD23F' : '#1F5FD6', 24 + i * 1.4, 8.6, i < 2 ? 'idle' : 'walk', i < 2));
+  function spawnFill(content, budget, preset) {
+    const park = content.userData.parkRoot;
+    if (park && budget > 0) {
+      const names = ['NPC_Passant_Hoodie', 'NPC_Passantin_Pulli', 'NPC_Passant_Senior'];
+      const seats = ['Sitz_1', 'Sitz_3', 'Sitz_5'].slice(0, Math.min(budget, preset.npcs > 1 ? 3 : 1));
+      for (let i = 0; i < seats.length; i++) {
+        const actor = makeNpc({ fig: names[i], clip: 'SitIdle', at: seats[i] }, { root: park }, content);
+        if (actor) { npcs.push(actor); budget--; }
+      }
+      const walk = [];
+      for (let i = 0; i < 12; i++) {
+        const s = spotOf(park, 'Spazierweg_' + String(i).padStart(2, '0'), content);
+        if (s) walk.push(s);
+      }
+      if (walk.length && budget > 0) {
+        const spawned = lib.spawn('NPC_Passantin_Kleid', { lod: 1, outline: tier === 'niedrig' ? 0 : 0.014, scale: FIG_SCALE });
+        spawned.root.position.set(walk[0].x, TILE_Y, walk[0].z);
+        spawned.ready.then(() => spawned.play('Walk'));
+        npcs.push({ root: spawned.root, spawned, clip: 'Walk', vfx: null, loop: walk, li: 0, lt: 0 });
+        budget--;
       }
     }
-  }
-
-  function fillActor(model, tint, x, z, mode, forever) {
-    const root = new THREE.Group();
-    const visual = createPlayerVisual({ id: model + x, figure: figureFor(model), color: tint, name: '' }, catalog, loader);
-    if (chars && chars[model]) {
-      const cloned = cloneSkinned(chars[model].scene);
-      stand(cloned);
-      cloned.rotation.y = Math.PI;
-      paintCharacter(cloned, tint);
-      visual.tilt.add(cloned);
-      visual.model = cloned;
-      visual.mixer = new THREE.AnimationMixer(cloned);
-      visual.clips = {};
-      for (const clip of chars[model].animations || []) visual.clips[clip.name.toLowerCase()] = clip;
-      visual.placeholder.visible = false;
-    } else visual.placeholder.visible = true;
-    root.add(visual.root);
-    root.position.set(x, 0, z);
-    return {
-      root, visual, forever,
-      steps: [{ mode, dur: forever ? 99 : 2.4, to: { lx: x + 2.2, lz: z } }],
-      i: 0, t: 0, from: { lx: x, lz: z }, home: { lx: x, lz: z },
-    };
+    const station = content.userData.stationRoot;
+    if (station && budget > 0) {
+      const wait = ['Warten_1', 'Warten_2'].slice(0, Math.min(2, budget));
+      for (let i = 0; i < wait.length; i++) {
+        const actor = makeNpc({
+          fig: i ? 'NPC_Reisende_Business' : 'NPC_Reisender_Rucksack',
+          clip: 'SitIdle',
+          at: wait[i],
+          prop: i ? 'Prop_Koffer' : null,
+          socket: 'Socket_Hand_R',
+        }, { root: station }, content);
+        if (actor) { npcs.push(actor); budget--; }
+      }
+    }
+    const guard = content.userData.guardAt && content.userData.cell;
+    if (guard && budget > 0) {
+      const actor = makeNpc({ fig: 'NPC_Polizistin', clip: 'Idle', at: 'Polizist_Idle' }, { root: content.userData.cell }, content);
+      if (actor) npcs.push(actor);
+    }
   }
 
   function stepNpcs(dt, now) {
     const content = contentOf(active);
-    const train = content.userData.train;
-    if (train) {
-      const u = (Math.sin(now / 1000 * 0.35) + 1) / 2;
-      train.position.x = 18 + u * 8;
-    }
+    if (content.userData.tick) content.userData.tick(now / 1000);
     for (const n of npcs) {
-      const step = n.steps[n.i];
-      n.t += dt;
-      if (!n.forever && (step.mode === 'walk' || step.mode === 'carry')) {
-        const dur = step.dur || 1.2;
-        const u = Math.min(1, n.t / dur);
-        n.root.position.set(
-          n.from.lx + (step.to.lx - n.from.lx) * u,
-          0,
-          n.from.lz + (step.to.lz - n.from.lz) * u,
-        );
-        if (u >= 1) advanceNpc(n);
-      } else if (!n.forever && n.t > (step.dur || 1)) {
-        advanceNpc(n);
+      if (n.loop && n.loop.length) {
+        const a = n.loop[n.li];
+        const b = n.loop[(n.li + 1) % n.loop.length];
+        const dist = Math.hypot(b.x - a.x, b.z - a.z) || 0.001;
+        n.lt += dt * (0.45 * FIG_SCALE) / dist;
+        if (n.lt >= 1) { n.lt = 0; n.li = (n.li + 1) % n.loop.length; }
+        n.root.position.set(a.x + (b.x - a.x) * n.lt, TILE_Y, a.z + (b.z - a.z) * n.lt);
+        n.root.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
       }
-      updateVisual(n.visual, step.mode === 'walk' ? 'walk' : step.mode, now / 1000, n.forever ? 0 : dt, catalog);
-      if (n.forever && n.visual.mixer) n.visual.mixer.timeScale = n.t > 1.2 ? 0 : 1;
-      if (step.vfx && PRESETS[tier].puffs) emitMote(content, step.vfx, n.root.position.x, 1.15, n.root.position.z);
+      if (n.spawned && n.spawned.mixer) n.spawned.mixer.update(dt);
+      if (n.vfx && PRESETS[tier].puffs) emitMote(content, n.vfx, n.root.position.x, 1.2, n.root.position.z);
     }
-  }
-
-  function advanceNpc(n) {
-    n.i = (n.i + 1) % n.steps.length;
-    n.t = 0;
-    n.from = { lx: n.root.position.x, lz: n.root.position.z };
   }
 
   function damp(a, b, dt) {
@@ -802,8 +812,10 @@ export function mountCity(canvas, board, opts = {}) {
 
   function applyTier() {
     for (const z of [1, 2, 3, 4]) applyDecor(pages[z], PRESETS[tier].decor);
-    fill.intensity = tier === 'hoch' ? 0.38 : 0;
+    if (lib) for (const z of [1, 2, 3, 4]) lib.setOutlines(pages[z], tier !== 'niedrig');
+    fill.intensity = tier === 'hoch' ? 0.28 : 0;
     liveTier = tier;
+    for (const p of players.values()) dress(p);
     refreshNpcs();
     resize();
   }
@@ -842,6 +854,8 @@ export function mountCity(canvas, board, opts = {}) {
       stepPlayers(dt, now);
       noteSlides();
       stepNpcs(dt, now);
+      const demo = contentOf(active).userData.demoMixers;
+      if (demo) for (const d of demo) if (d.mixer) d.mixer.update(dt);
       stepMotes(dt);
       placeBlobs();
       stepPins();
@@ -864,7 +878,7 @@ export function mountCity(canvas, board, opts = {}) {
     layout = buildLayout((next && next.fields) || []);
     for (const z of [1, 2, 3, 4]) {
       scene.remove(pages[z]);
-      pages[z] = buildZone(layout, z);
+      pages[z] = lib ? buildZone(layout, z, lib) : blankPage(z);
       scene.add(pages[z]);
     }
     showOnly(active);
@@ -905,6 +919,7 @@ export function mountCity(canvas, board, opts = {}) {
       applyTier();
     },
     setBoard(next) { rebuild(next); },
+    ready,
     stats() {
       return {
         fps: Math.round(fps),
@@ -923,13 +938,22 @@ export function mountCity(canvas, board, opts = {}) {
       const zone = { uebersicht: 1, kueche: 1, festnahme: 2, park: 2, bahnhof: 4 }[shot] || 1;
       if (!flip) showOnly(zone);
       if (shot === 'festnahme') poseArrestStill();
+    if (shot === 'bahnhof') {
+      const content = contentOf(4);
+      content.userData.holdTrain = true;
+      if (content.userData.train) content.userData.train.position.x = 0;
+    }
       stepCamera(1);
       renderer.render(scene, camera);
+      let skinned = 0;
+      contentOf(active).traverse((o) => { if (o.isSkinnedMesh) skinned++; });
       return {
         fps: Math.round(fps),
         tier,
         calls: renderer.info.render.calls,
         triangles: renderer.info.render.triangles,
+        npcs: npcs.length,
+        skinned,
         zone: active,
         slides: layout.slides.map(s => s.field + '→' + s.to).join(' '),
         fp: layout.prisons.map(j => 'Z' + j.zone + ':' + j.fields.join('+')).join(' '),
@@ -1054,9 +1078,3 @@ function ensureBlobs() {
   return blobs;
 }
 
-function loadChars(loader) {
-  return Promise.all(Object.entries(CHAR_FILES).map(async ([id, url]) => {
-    const gltf = await loader.loadAsync(url);
-    return [id, gltf];
-  })).then(list => Object.fromEntries(list));
-}

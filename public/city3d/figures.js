@@ -300,43 +300,42 @@ async function loadFigure(api, player, catalog, loader) {
   }
 }
 
-export function updateVisual(api, mode, t, dt, catalog) {
+const CLIP_FOR = {
+  walk: ['walk', 'run'],
+  run: ['run', 'walk'],
+  sit: ['sitidle', 'sit'],
+  prisonersit: ['prisonersit', 'sitidle'],
+  prisonerwalk: ['prisonerwalk', 'walk'],
+  prisoneridle: ['prisoneridle', 'idle'],
+  cheer: ['victory', 'wave', 'dance'],
+  punch: ['hammer'],
+  hammer: ['hammer'],
+  pickup: ['pickup'],
+  carry: ['carrywalk', 'carryidle', 'walk'],
+  idle: ['idle'],
+  cuff: ['cuff'],
+  lead: ['lead', 'walk'],
+};
+const ONCE = new Set(['sit', 'standup', 'pickup', 'interact', 'kneelfix', 'cuff']);
+
+export function updateVisual(api, mode, t, dt) {
   if (!api) return;
   if (api.mixer && api.model) {
-    const names = (catalog && catalog.clips) || {};
-    const want = mode === 'cheer' ? (names.cheer || ['victory', 'cheer', 'yes'])
-      : mode === 'sit' ? (names.sit || ['sitdown', 'sit', 'sitting', 'jail'])
-      : mode === 'punch' ? ['punch']
-      : mode === 'pickup' ? ['pickup', 'pick']
-      : mode === 'carry' ? ['walk_carry', 'carry', 'walk']
-      : (mode === 'walk' ? (names.walk || ['walk', 'running', 'run'])
-        : (names.idle || ['idle', 'stand', 'idle_01']));
-    const clip = clipByNames(api.clips, want) || clipByNames(api.clips, names.idle || ['idle']) || null;
+    const want = CLIP_FOR[mode] || [String(mode || 'idle').toLowerCase(), 'idle'];
+    const clip = clipByNames(api.clips, want) || clipByNames(api.clips, ['idle']);
     const key = clip ? clip.name : '';
-    if (key !== api.current) {
+    if (key && key !== api.current) {
       if (api.action) api.action.fadeOut(0.15);
       api.current = key;
-      api.action = null;
-      if (clip) {
-        api.action = api.mixer.clipAction(clip);
-        if (mode === 'sit' || mode === 'cheer') {
-          api.action.setLoop(THREE.LoopOnce, 1);
-          api.action.clampWhenFinished = true;
-        }
-        api.action.reset().fadeIn(0.15).play();
-      }
+      api.action = api.mixer.clipAction(clip);
+      if (ONCE.has(String(mode || '').toLowerCase()) || ONCE.has(key.toLowerCase())) {
+        api.action.setLoop(THREE.LoopOnce, 1);
+        api.action.clampWhenFinished = true;
+      } else api.action.setLoop(THREE.LoopRepeat, Infinity);
+      api.action.reset().fadeIn(0.15).play();
     }
     api.mixer.update(dt || 0);
-    const hasSit = !!clipByNames(api.clips, names.sit || ['sit', 'sitting', 'jail']);
-    const baseY = api.model.userData.baseY ?? 0;
-    if (mode === 'sit' && !hasSit) {
-      api.model.rotation.x = 0.65;
-      api.model.position.y = baseY - 0.15;
-    } else {
-      api.model.rotation.x = 0;
-      api.model.position.y = baseY;
-    }
-    setCuffs(api.placeholder, false);
+    if (api.placeholder) api.placeholder.visible = false;
     return;
   }
   pose(api.placeholder, mode, t);
