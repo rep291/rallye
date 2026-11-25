@@ -39,7 +39,7 @@ const SHOP_JOBS = {
   ],
   lager: [
     { fig: 'NPC_Lagerist', clip: 'CarryIdle', prop: 'Prop_Kiste', socket: 'DEF-spine003', at: 'Station_Kiste' },
-    { fig: 'NPC_Lagerist', clip: 'Clipboard', prop: 'Prop_Klemmbrett', socket: 'Socket_Hand_L', at: 'Station_Palette' },
+    { fig: 'NPC_Lagerist', clip: 'Clipboard', prop: 'Prop_Klemmbrett', socket: 'Socket_Hand_L', prop2: 'Prop_Stift', socket2: 'Socket_Hand_R', at: 'Station_Palette' },
   ],
   buero: [
     { fig: 'NPC_Buero', clip: 'Type', at: 'Station_Schreibtisch_Sitz' },
@@ -530,7 +530,7 @@ export function mountCity(canvas, board, opts = {}) {
   }
 
   function applyShot() {
-    camera.fov = shot === 'berufe' ? 48 : 40;
+    camera.fov = shot === 'berufe' ? 48 : shot === 'griffe' ? 62 : shot === 'landwirt' ? 38 : 40;
     camera.updateProjectionMatrix();
     if (shot === 'kueche') {
       const b = layout.buildings.find(x => x.id === 'kueche');
@@ -552,6 +552,12 @@ export function mountCity(canvas, board, opts = {}) {
     } else if (shot === 'berufe') {
       _desired.set(11.65, 11.4, 17.6);
       _look.set(11.65, 0.35, 5.4);
+    } else if (shot === 'griffe') {
+      _desired.set(2.025, 1.05, 4.25);
+      _look.set(2.025, 0.9, 0);
+    } else if (shot === 'landwirt') {
+      _desired.set(-1.15, 1.02, 2.55);
+      _look.set(-0.02, 0.78, 0.08);
     } else if (shot === 'park') {
       const p = contentOf(2).userData.park || { x: 20, z: 6.2 };
       _desired.set(p.x - 1, 8.2, p.z + 11);
@@ -597,14 +603,22 @@ export function mountCity(canvas, board, opts = {}) {
     });
   }
 
-  function clearBerufe() {
-    const row = scene.getObjectByName('BerufeReihe');
-    if (row) row.removeFromParent();
+  const STAGED = ['BerufeReihe', 'LandwirtShot', 'GriffReihe'];
+
+  function clearStaged() {
+    for (const name of STAGED) {
+      const row = scene.getObjectByName(name);
+      if (row) row.removeFromParent();
+    }
+  }
+
+  function hidePages() {
+    for (const k of [1, 2, 3, 4]) pages[k].visible = false;
   }
 
   function poseBerufe() {
-    clearBerufe();
-    for (const k of [1, 2, 3, 4]) pages[k].visible = false;
+    clearStaged();
+    hidePages();
     const g = new THREE.Group();
     g.name = 'BerufeReihe';
     const ground = new THREE.Mesh(
@@ -640,13 +654,75 @@ export function mountCity(canvas, board, opts = {}) {
     scene.add(g);
   }
 
+  function poseLandwirt() {
+    clearStaged();
+    hidePages();
+    const g = new THREE.Group();
+    g.name = 'LandwirtShot';
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(8, 8),
+      new THREE.MeshToonMaterial({ color: 0x8fcf5a, gradientMap: lib.mats.gradient }),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    g.add(ground);
+    const spawned = lib.spawn('NPC_Landwirt', { lod: 0, outline: 0.016, scale: FIG_SCALE });
+    spawned.ready.then(() => {
+      lib.attachProp(spawned.model, 'Prop_Heugabel', 'Socket_Hand_R');
+      spawned.play('Pitchfork', { loop: true });
+      if (spawned.mixer) spawned.mixer.update(0.35);
+    });
+    g.add(spawned.root);
+    g.userData.actors = [spawned];
+    scene.add(g);
+  }
+
+  function poseGriffe() {
+    clearStaged();
+    hidePages();
+    const line = [
+      { label: 'Tischler', fig: 'NPC_Tischler', clip: 'Saw', prop: 'Prop_Saege', socket: 'Socket_Hand_R', t: 0.32 },
+      { label: 'Maler', fig: 'NPC_Maler', clip: 'Paint', prop: 'Prop_Farbroller', socket: 'Socket_Hand_R', t: 0.72 },
+      { label: 'Garten', fig: 'NPC_Gaertnerin', clip: 'Water', prop: 'Prop_Giesskanne', socket: 'Socket_Hand_R', t: 1.05 },
+      { label: 'IT', fig: 'NPC_IT', clip: 'CarryLaptopWalk', prop: 'Prop_Laptop_zu', socket: 'Socket_Hand_L', t: 0.5 },
+    ];
+    const g = new THREE.Group();
+    g.name = 'GriffReihe';
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 6),
+      new THREE.MeshToonMaterial({ color: 0x8fcf5a, gradientMap: lib.mats.gradient }),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(2.025, 0, 0);
+    g.add(ground);
+    const actors = [];
+    line.forEach((gear, i) => {
+      const spawned = lib.spawn(gear.fig, { lod: 0, outline: 0.016, scale: FIG_SCALE });
+      spawned.root.position.set(i * 1.35, 0, 0);
+      const tag = makeNameSprite(gear.label);
+      tag.scale.set(1.05, 0.28, 1);
+      tag.position.y = 1.78;
+      spawned.root.add(tag);
+      spawned.ready.then(() => {
+        lib.attachProp(spawned.model, gear.prop, gear.socket);
+        spawned.play(gear.clip, { loop: true });
+        if (spawned.mixer) spawned.mixer.update(gear.t);
+      });
+      g.add(spawned.root);
+      actors.push(spawned);
+    });
+    g.userData.actors = actors;
+    scene.add(g);
+  }
+
   function pendingActors() {
     const waits = [];
     const demo = contentOf(active).userData.demoMixers;
     if (demo) for (const d of demo) if (d.ready) waits.push(d.ready);
     for (const n of npcs) if (n.spawned && n.spawned.ready) waits.push(n.spawned.ready);
-    const row = scene.getObjectByName('BerufeReihe');
-    if (row && row.userData.actors) for (const a of row.userData.actors) if (a.ready) waits.push(a.ready);
+    for (const name of STAGED) {
+      const row = scene.getObjectByName(name);
+      if (row && row.userData.actors) for (const a of row.userData.actors) if (a.ready) waits.push(a.ready);
+    }
     return waits;
   }
 
@@ -1002,16 +1078,26 @@ export function mountCity(canvas, board, opts = {}) {
     },
     frameShot(kind) {
       shot = kind || 'uebersicht';
-      if (shot !== 'berufe') clearBerufe();
+      const staged = { berufe: 'BerufeReihe', griffe: 'GriffReihe', landwirt: 'LandwirtShot' };
+      if (!staged[shot]) clearStaged();
       const zone = {
         uebersicht: 1, kueche: 1, festnahme: 2, park: 2, bahnhof: 4, balken: 3, berufe: 1,
+        griffe: 1, landwirt: 1,
         zone1: 1, zone2: 2, zone3: 3, zone4: 4,
       }[shot] || 1;
       if (!flip) showOnly(zone);
       if (shot === 'festnahme') poseArrestStill();
-      if (shot === 'berufe') {
-        if (!scene.getObjectByName('BerufeReihe')) poseBerufe();
-        else for (const k of [1, 2, 3, 4]) pages[k].visible = false;
+      if (staged[shot]) {
+        for (const name of STAGED) {
+          if (name === staged[shot]) continue;
+          const row = scene.getObjectByName(name);
+          if (row) row.removeFromParent();
+        }
+        if (!scene.getObjectByName(staged[shot])) {
+          if (shot === 'berufe') poseBerufe();
+          else if (shot === 'griffe') poseGriffe();
+          else poseLandwirt();
+        } else hidePages();
       }
     if (shot === 'bahnhof') {
       const content = contentOf(4);
@@ -1036,6 +1122,26 @@ export function mountCity(canvas, board, opts = {}) {
     },
     settle() {
       return Promise.all(pendingActors());
+    },
+    auditGrips() {
+      const out = [];
+      scene.updateMatrixWorld(true);
+      scene.traverse((o) => {
+        if (!o.name || !o.name.startsWith('Prop_')) return;
+        if (o.parent && o.parent.name && o.parent.name.startsWith('Prop_')) return;
+        const socket = o.parent;
+        const at = new THREE.Vector3();
+        const hand = new THREE.Vector3();
+        o.getWorldPosition(at);
+        if (socket) socket.getWorldPosition(hand);
+        out.push({
+          prop: o.name,
+          parent: socket ? socket.name : '',
+          gap: socket ? Number(at.distanceTo(hand).toFixed(3)) : -1,
+          y: Number(at.y.toFixed(3)),
+        });
+      });
+      return out;
     },
   };
 }

@@ -46,29 +46,29 @@ export const JOB_LABEL = {
   landwirt: 'Landwirt', kiga: 'Kindergarten',
 };
 
-/** Prop, Socket und Clip laut LISTE.md. Balken und Reifen hängen an DEF-spine003. */
+/** Prop, Socket und Clip laut EINBAU §6a. Sockets aus prop_grips.json (socket_three). */
 export const JOB_GEAR = {
   mechanik: { prop: 'Prop_Reifen', socket: 'DEF-spine003', clip: 'CarryWalk' },
   koch: { prop: 'Prop_Kochloeffel', socket: 'Socket_Hand_R', clip: 'Stir' },
   friseur: { prop: 'Prop_Schere', socket: 'Socket_Hand_R', prop2: 'Prop_Kamm', socket2: 'Socket_Hand_L', clip: 'Haircut' },
-  it: { clip: 'Idle' },
-  garten: { prop: 'Prop_Giesskanne', socket: 'Socket_Hand_R', clip: 'Idle' },
+  it: { prop: 'Prop_Laptop_zu', socket: 'Socket_Hand_L', clip: 'CarryLaptopWalk' },
+  garten: { prop: 'Prop_Giesskanne', socket: 'Socket_Hand_R', clip: 'Water' },
   labor: { prop: 'Prop_Pipette', socket: 'Socket_Hand_R', prop2: 'Prop_Reagenzglas', socket2: 'Socket_Hand_L', clip: 'Pipette' },
   lager: { prop: 'Prop_Kiste', socket: 'DEF-spine003', clip: 'CarryIdle' },
-  tischler: { prop: 'Prop_Saege', socket: 'Socket_Hand_R', clip: 'Chop' },
-  elektrik: { prop: 'Prop_Messgeraet', socket: 'Socket_Hand_L', clip: 'Idle' },
+  tischler: { prop: 'Prop_Saege', socket: 'Socket_Hand_R', clip: 'Saw' },
+  elektrik: { prop: 'Prop_Messgeraet', socket: 'Socket_Hand_L', clip: 'Interact' },
   pflege: { prop: 'Prop_Tablett', socket: 'DEF-spine003', clip: 'CarryWalk' },
   polizei: { clip: 'Idle' },
   feuerwehr: { prop: 'Prop_Feuerloescher', socket: 'Socket_Hand_L', clip: 'Idle' },
   maurer: { prop: 'Prop_Kelle', socket: 'Socket_Hand_R', clip: 'CrouchIdle' },
-  maler: { prop: 'Prop_Farbroller', socket: 'Socket_Hand_R', clip: 'Stir' },
+  maler: { prop: 'Prop_Farbroller', socket: 'Socket_Hand_R', clip: 'Paint' },
   baecker: { prop: 'Prop_Brot', socket: 'Socket_Hand_R', clip: 'Idle' },
   verkauf: { prop: 'Prop_Einkaufskorb', socket: 'Socket_Hand_L', clip: 'Idle' },
   buero: { clip: 'Idle' },
-  arzt: { clip: 'Examine' },
-  schweiss: { prop: 'Prop_Hammer', socket: 'Socket_Hand_R', clip: 'Hammer' },
+  arzt: { prop: 'Prop_Klemmbrett', socket: 'Socket_Hand_L', prop2: 'Prop_Stift', socket2: 'Socket_Hand_R', clip: 'Clipboard' },
+  schweiss: { prop: 'Prop_Schweissbrenner', socket: 'Socket_Hand_R', clip: 'Weld' },
   fahrer: { clip: 'Idle' },
-  landwirt: { clip: 'Idle' },
+  landwirt: { prop: 'Prop_Heugabel', socket: 'Socket_Hand_R', clip: 'Pitchfork' },
   kiga: { prop: 'Prop_Ball', socket: 'Socket_Hand_L', clip: 'Talk' },
 };
 
@@ -341,28 +341,16 @@ export async function loadCityLib() {
     return hit;
   }
 
+  // v3-Grip-Pivot: Geometrie liegt schon im Socket-Raum, Ursprung ist der Griff.
+  // socket.add ohne Offset und ohne skel.pose(); die alte Variante setzt Props an die Füße.
   function attachProp(figRoot, propName, socketName) {
     const src = props.getObjectByName(propName);
     if (!src || !figRoot) return null;
+    const socket = figRoot.getObjectByName(String(socketName || '').replace(/\./g, ''));
+    if (!socket) return null;
     const prop = src.clone(true);
+    socket.add(prop);
     toonify(prop, { material: npcMat, outlineMat, outline: 0.008 });
-    let skel = null;
-    figRoot.traverse((o) => { if (o.isSkinnedMesh && !skel) skel = o.skeleton; });
-    const socket = bone(figRoot, socketName);
-    if (!skel || !socket) {
-      figRoot.add(prop);
-      return prop;
-    }
-    const saved = skel.bones.map((b) => [b.position.clone(), b.quaternion.clone(), b.scale.clone()]);
-    skel.pose();
-    figRoot.add(prop);
-    figRoot.updateMatrixWorld(true);
-    socket.attach(prop);
-    skel.bones.forEach((b, i) => {
-      b.position.copy(saved[i][0]);
-      b.quaternion.copy(saved[i][1]);
-      b.scale.copy(saved[i][2]);
-    });
     return prop;
   }
 

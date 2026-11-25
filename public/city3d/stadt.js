@@ -26905,24 +26905,24 @@ void main() {
     mechanik: { prop: "Prop_Reifen", socket: "DEF-spine003", clip: "CarryWalk" },
     koch: { prop: "Prop_Kochloeffel", socket: "Socket_Hand_R", clip: "Stir" },
     friseur: { prop: "Prop_Schere", socket: "Socket_Hand_R", prop2: "Prop_Kamm", socket2: "Socket_Hand_L", clip: "Haircut" },
-    it: { clip: "Idle" },
-    garten: { prop: "Prop_Giesskanne", socket: "Socket_Hand_R", clip: "Idle" },
+    it: { prop: "Prop_Laptop_zu", socket: "Socket_Hand_L", clip: "CarryLaptopWalk" },
+    garten: { prop: "Prop_Giesskanne", socket: "Socket_Hand_R", clip: "Water" },
     labor: { prop: "Prop_Pipette", socket: "Socket_Hand_R", prop2: "Prop_Reagenzglas", socket2: "Socket_Hand_L", clip: "Pipette" },
     lager: { prop: "Prop_Kiste", socket: "DEF-spine003", clip: "CarryIdle" },
-    tischler: { prop: "Prop_Saege", socket: "Socket_Hand_R", clip: "Chop" },
-    elektrik: { prop: "Prop_Messgeraet", socket: "Socket_Hand_L", clip: "Idle" },
+    tischler: { prop: "Prop_Saege", socket: "Socket_Hand_R", clip: "Saw" },
+    elektrik: { prop: "Prop_Messgeraet", socket: "Socket_Hand_L", clip: "Interact" },
     pflege: { prop: "Prop_Tablett", socket: "DEF-spine003", clip: "CarryWalk" },
     polizei: { clip: "Idle" },
     feuerwehr: { prop: "Prop_Feuerloescher", socket: "Socket_Hand_L", clip: "Idle" },
     maurer: { prop: "Prop_Kelle", socket: "Socket_Hand_R", clip: "CrouchIdle" },
-    maler: { prop: "Prop_Farbroller", socket: "Socket_Hand_R", clip: "Stir" },
+    maler: { prop: "Prop_Farbroller", socket: "Socket_Hand_R", clip: "Paint" },
     baecker: { prop: "Prop_Brot", socket: "Socket_Hand_R", clip: "Idle" },
     verkauf: { prop: "Prop_Einkaufskorb", socket: "Socket_Hand_L", clip: "Idle" },
     buero: { clip: "Idle" },
-    arzt: { clip: "Examine" },
-    schweiss: { prop: "Prop_Hammer", socket: "Socket_Hand_R", clip: "Hammer" },
+    arzt: { prop: "Prop_Klemmbrett", socket: "Socket_Hand_L", prop2: "Prop_Stift", socket2: "Socket_Hand_R", clip: "Clipboard" },
+    schweiss: { prop: "Prop_Schweissbrenner", socket: "Socket_Hand_R", clip: "Weld" },
     fahrer: { clip: "Idle" },
-    landwirt: { clip: "Idle" },
+    landwirt: { prop: "Prop_Heugabel", socket: "Socket_Hand_R", clip: "Pitchfork" },
     kiga: { prop: "Prop_Ball", socket: "Socket_Hand_L", clip: "Talk" }
   };
   var PLAYERS = ["Spieler_A", "Spieler_B", "Spieler_C", "Spieler_D", "Spieler_E", "Spieler_F"];
@@ -27225,27 +27225,11 @@ void main() {
     function attachProp(figRoot, propName, socketName) {
       const src = props.getObjectByName(propName);
       if (!src || !figRoot) return null;
+      const socket = figRoot.getObjectByName(String(socketName || "").replace(/\./g, ""));
+      if (!socket) return null;
       const prop = src.clone(true);
+      socket.add(prop);
       toonify(prop, { material: npcMat, outlineMat, outline: 8e-3 });
-      let skel = null;
-      figRoot.traverse((o) => {
-        if (o.isSkinnedMesh && !skel) skel = o.skeleton;
-      });
-      const socket = bone(figRoot, socketName);
-      if (!skel || !socket) {
-        figRoot.add(prop);
-        return prop;
-      }
-      const saved = skel.bones.map((b) => [b.position.clone(), b.quaternion.clone(), b.scale.clone()]);
-      skel.pose();
-      figRoot.add(prop);
-      figRoot.updateMatrixWorld(true);
-      socket.attach(prop);
-      skel.bones.forEach((b, i) => {
-        b.position.copy(saved[i][0]);
-        b.quaternion.copy(saved[i][1]);
-        b.scale.copy(saved[i][2]);
-      });
       return prop;
     }
     const ringGeo = new RingGeometry(0.32, 0.48, 18);
@@ -27324,7 +27308,7 @@ void main() {
     ],
     lager: [
       { fig: "NPC_Lagerist", clip: "CarryIdle", prop: "Prop_Kiste", socket: "DEF-spine003", at: "Station_Kiste" },
-      { fig: "NPC_Lagerist", clip: "Clipboard", prop: "Prop_Klemmbrett", socket: "Socket_Hand_L", at: "Station_Palette" }
+      { fig: "NPC_Lagerist", clip: "Clipboard", prop: "Prop_Klemmbrett", socket: "Socket_Hand_L", prop2: "Prop_Stift", socket2: "Socket_Hand_R", at: "Station_Palette" }
     ],
     buero: [
       { fig: "NPC_Buero", clip: "Type", at: "Station_Schreibtisch_Sitz" },
@@ -27797,7 +27781,7 @@ void main() {
       }
     }
     function applyShot() {
-      camera.fov = shot === "berufe" ? 48 : 40;
+      camera.fov = shot === "berufe" ? 48 : shot === "griffe" ? 62 : shot === "landwirt" ? 38 : 40;
       camera.updateProjectionMatrix();
       if (shot === "kueche") {
         const b = layout.buildings.find((x) => x.id === "kueche");
@@ -27819,6 +27803,12 @@ void main() {
       } else if (shot === "berufe") {
         _desired.set(11.65, 11.4, 17.6);
         _look.set(11.65, 0.35, 5.4);
+      } else if (shot === "griffe") {
+        _desired.set(2.025, 1.05, 4.25);
+        _look.set(2.025, 0.9, 0);
+      } else if (shot === "landwirt") {
+        _desired.set(-1.15, 1.02, 2.55);
+        _look.set(-0.02, 0.78, 0.08);
       } else if (shot === "park") {
         const p = contentOf(2).userData.park || { x: 20, z: 6.2 };
         _desired.set(p.x - 1, 8.2, p.z + 11);
@@ -27862,13 +27852,19 @@ void main() {
         if (cop.mixer) cop.mixer.update(0.65);
       });
     }
-    function clearBerufe() {
-      const row = scene.getObjectByName("BerufeReihe");
-      if (row) row.removeFromParent();
+    var STAGED = ["BerufeReihe", "LandwirtShot", "GriffReihe"];
+    function clearStaged() {
+      for (const name of STAGED) {
+        const row = scene.getObjectByName(name);
+        if (row) row.removeFromParent();
+      }
+    }
+    function hidePages() {
+      for (const k of [1, 2, 3, 4]) pages[k].visible = false;
     }
     function poseBerufe() {
-      clearBerufe();
-      for (const k of [1, 2, 3, 4]) pages[k].visible = false;
+      clearStaged();
+      hidePages();
       const g = new Group();
       g.name = "BerufeReihe";
       const ground = new Mesh(
@@ -27903,13 +27899,73 @@ void main() {
       g.userData.actors = actors;
       scene.add(g);
     }
+    function poseLandwirt() {
+      clearStaged();
+      hidePages();
+      const g = new Group();
+      g.name = "LandwirtShot";
+      const ground = new Mesh(
+        new PlaneGeometry(8, 8),
+        new MeshToonMaterial({ color: 9424730, gradientMap: lib.mats.gradient })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      g.add(ground);
+      const spawned = lib.spawn("NPC_Landwirt", { lod: 0, outline: 0.016, scale: FIG_SCALE });
+      spawned.ready.then(() => {
+        lib.attachProp(spawned.model, "Prop_Heugabel", "Socket_Hand_R");
+        spawned.play("Pitchfork", { loop: true });
+        if (spawned.mixer) spawned.mixer.update(0.35);
+      });
+      g.add(spawned.root);
+      g.userData.actors = [spawned];
+      scene.add(g);
+    }
+    function poseGriffe() {
+      clearStaged();
+      hidePages();
+      const line = [
+        { label: "Tischler", fig: "NPC_Tischler", clip: "Saw", prop: "Prop_Saege", socket: "Socket_Hand_R", t: 0.32 },
+        { label: "Maler", fig: "NPC_Maler", clip: "Paint", prop: "Prop_Farbroller", socket: "Socket_Hand_R", t: 0.72 },
+        { label: "Garten", fig: "NPC_Gaertnerin", clip: "Water", prop: "Prop_Giesskanne", socket: "Socket_Hand_R", t: 1.05 },
+        { label: "IT", fig: "NPC_IT", clip: "CarryLaptopWalk", prop: "Prop_Laptop_zu", socket: "Socket_Hand_L", t: 0.5 }
+      ];
+      const g = new Group();
+      g.name = "GriffReihe";
+      const ground = new Mesh(
+        new PlaneGeometry(10, 6),
+        new MeshToonMaterial({ color: 9424730, gradientMap: lib.mats.gradient })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(2.025, 0, 0);
+      g.add(ground);
+      const actors = [];
+      line.forEach((gear, i) => {
+        const spawned = lib.spawn(gear.fig, { lod: 0, outline: 0.016, scale: FIG_SCALE });
+        spawned.root.position.set(i * 1.35, 0, 0);
+        const tag = makeNameSprite(gear.label);
+        tag.scale.set(1.05, 0.28, 1);
+        tag.position.y = 1.78;
+        spawned.root.add(tag);
+        spawned.ready.then(() => {
+          lib.attachProp(spawned.model, gear.prop, gear.socket);
+          spawned.play(gear.clip, { loop: true });
+          if (spawned.mixer) spawned.mixer.update(gear.t);
+        });
+        g.add(spawned.root);
+        actors.push(spawned);
+      });
+      g.userData.actors = actors;
+      scene.add(g);
+    }
     function pendingActors() {
       const waits = [];
       const demo = contentOf(active).userData.demoMixers;
       if (demo) for (const d of demo) if (d.ready) waits.push(d.ready);
       for (const n of npcs) if (n.spawned && n.spawned.ready) waits.push(n.spawned.ready);
-      const row = scene.getObjectByName("BerufeReihe");
-      if (row && row.userData.actors) for (const a of row.userData.actors) if (a.ready) waits.push(a.ready);
+      for (const name of STAGED) {
+        const row = scene.getObjectByName(name);
+        if (row && row.userData.actors) for (const a of row.userData.actors) if (a.ready) waits.push(a.ready);
+      }
       return waits;
     }
     function placeBlobs() {
@@ -28271,16 +28327,26 @@ void main() {
       },
       frameShot(kind) {
         shot = kind || "uebersicht";
-        if (shot !== "berufe") clearBerufe();
+        const staged = { berufe: "BerufeReihe", griffe: "GriffReihe", landwirt: "LandwirtShot" };
+        if (!staged[shot]) clearStaged();
         const zone = {
           uebersicht: 1, kueche: 1, festnahme: 2, park: 2, bahnhof: 4, balken: 3, berufe: 1,
+          griffe: 1, landwirt: 1,
           zone1: 1, zone2: 2, zone3: 3, zone4: 4
         }[shot] || 1;
         if (!flip) showOnly(zone);
         if (shot === "festnahme") poseArrestStill();
-        if (shot === "berufe") {
-          if (!scene.getObjectByName("BerufeReihe")) poseBerufe();
-          else for (const k of [1, 2, 3, 4]) pages[k].visible = false;
+        if (staged[shot]) {
+          for (const name of STAGED) {
+            if (name === staged[shot]) continue;
+            const row = scene.getObjectByName(name);
+            if (row) row.removeFromParent();
+          }
+          if (!scene.getObjectByName(staged[shot])) {
+            if (shot === "berufe") poseBerufe();
+            else if (shot === "griffe") poseGriffe();
+            else poseLandwirt();
+          } else hidePages();
         }
         if (shot === "bahnhof") {
           const content = contentOf(4);
@@ -28307,6 +28373,26 @@ void main() {
       },
       settle() {
         return Promise.all(pendingActors());
+      },
+      auditGrips() {
+        const out = [];
+        scene.updateMatrixWorld(true);
+        scene.traverse((o) => {
+          if (!o.name || !o.name.startsWith("Prop_")) return;
+          if (o.parent && o.parent.name && o.parent.name.startsWith("Prop_")) return;
+          const socket = o.parent;
+          const at = new Vector3();
+          const hand = new Vector3();
+          o.getWorldPosition(at);
+          if (socket) socket.getWorldPosition(hand);
+          out.push({
+            prop: o.name,
+            parent: socket ? socket.name : "",
+            gap: socket ? Number(at.distanceTo(hand).toFixed(3)) : -1,
+            y: Number(at.y.toFixed(3))
+          });
+        });
+        return out;
       }
     };
   }
