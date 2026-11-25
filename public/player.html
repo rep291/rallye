@@ -1,32 +1,60 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8"><title>Mitspielen – BERUFE-RALLYE</title>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><link rel="stylesheet" href="/style.css"></head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/fragekarte.css"></head>
 <body><div class="conn" id="conn">Verbindung unterbrochen – verbinde neu …</div>
 <div class="phone" id="app"></div>
-<script src="/vendor/socket.io.min.js"></script>
+<script src="/vendor/socket.io.min.js"></script><script src="/figuren.js"></script><script src="/effekte.js"></script><script src="/fragekarte.js"></script>
 <script>
 const $ = id => document.getElementById(id), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const sock = io({ reconnectionDelay: 500, reconnectionDelayMax: 3000 });
-let S = null, myId = null, err = '', pickColor = null, pickTeam = null, joining = false;
-const KEY = 'brettspiel_token';
-function tryRejoin() { const t = localStorage.getItem(KEY); if (t) sock.emit('join', { token: t }, r => { if (r.ok) { myId = r.id; } else localStorage.removeItem(KEY); render(); }); }
-sock.on('connect', () => { $('conn').classList.remove('show'); tryRejoin(); });
+let S = null, myId = null, err = '', pickColor = null, pickFig = 'mechanik', pickTeam = null, joining = false, joinMode = 'solo', teamPickId = null, memberName = localStorage.getItem('rallye_member') || '', lastRollAt = 0, rollingUntil = 0;
+let roomCode = (new URLSearchParams(location.search).get('r') || localStorage.getItem('rallye_room') || '').toUpperCase(), needRoom = false, roomErr = '';
+const tokKey = () => 'brettspiel_token_' + roomCode;
+function watchRoom(code, manual) {
+  sock.emit('room:watch', code || '', r => {
+    if (r.ok) { roomCode = r.code; needRoom = false; roomErr = ''; localStorage.setItem('rallye_room', roomCode); if (new URLSearchParams(location.search).get('r') !== roomCode) history.replaceState(null, '', '/?r=' + roomCode); tryRejoin(); }
+    else { needRoom = true; roomErr = (manual || code) ? r.error : ''; if (!manual) localStorage.removeItem('rallye_room'); render(); }
+  });
+}
+function enterCode() { const c = ($('roomIn').value || '').trim().toUpperCase(); if (c) watchRoom(c, true); }
+sock.on('roomClosed', () => { localStorage.removeItem(tokKey()); localStorage.removeItem('rallye_room'); myId = null; roomCode = ''; needRoom = true; roomErr = 'Der Raum wurde geschlossen.'; S = null; render(); });
+function tryRejoin() { const t = localStorage.getItem(tokKey()); if (t) sock.emit('join', { token: t, room: roomCode }, r => { if (r.ok) { myId = r.id; memberName = r.memberName || ''; } else localStorage.removeItem(tokKey()); render(); }); else render(); }
+sock.on('connect', () => { $('conn').classList.remove('show'); watchRoom(roomCode); });
 sock.on('disconnect', () => $('conn').classList.add('show'));
-sock.on('state', s => { S = s; if (myId && !s.players.some(p => p.id === myId)) { myId = null; localStorage.removeItem(KEY); } render(); });
+sock.on('state', s => { S = s; if (s.lastRoll && s.lastRoll.playerId === myId && s.lastRoll.at !== lastRollAt) { const fresh = lastRollAt && Date.now() - s.lastRoll.at < 2500; lastRollAt = s.lastRoll.at; if (fresh || Date.now() - s.lastRoll.at < 1500) { rollingUntil = Date.now() + 850; setTimeout(render, 900); Effekte.play('wuerfel_rollen', .6); } } if (myId && !s.players.some(p => p.id === myId)) { myId = null; localStorage.removeItem(tokKey()); } render(); });
 function join() {
   const name = $('name').value.trim(); if (!name) { err = 'Bitte einen Namen eingeben.'; return render(); }
+  const d = { name, room: roomCode, color: pickColor, figure: pickFig, team: pickTeam };
+  if (joinMode === 'new') { const tn = ($('teamName').value || '').trim(); if (!tn) { err = 'Bitte einen Teamnamen eingeben.'; return render(); } d.newTeam = tn; }
+  if (joinMode === 'team') { if (!teamPickId) { err = 'Bitte ein Team auswählen.'; return render(); } d.teamId = teamPickId; }
   joining = true;
-  sock.emit('join', { name, color: pickColor, team: pickTeam }, r => { joining = false; if (r.ok) { myId = r.id; localStorage.setItem(KEY, r.token); err = ''; } else err = r.error; render(); });
+  sock.emit('join', d, r => { joining = false; if (r.ok) { myId = r.id; memberName = r.memberName || name; localStorage.setItem('rallye_member', memberName); localStorage.setItem(tokKey(), r.token); err = ''; } else err = r.error; render(); });
 }
-function colorBtns() { return S.freeColors.map(c => `<button style="background:${c}" class="${c === pickColor ? 'sel' : ''}" onclick="pickColor='${c}';render()"></button>`).join(''); }
-function render() {
-  if (!S) return; const app = $('app'); const me = S.players.find(p => p.id === myId);
+function figBtns(col, cur, onpick) { const free = S.freeFigures || Figuren.list.map(f => f.id); return Figuren.list.filter(f => f.id === cur || free.includes(f.id)).map(f => `<button class="${f.id === cur ? 'sel' : ''}" onclick="${onpick.endsWith(',') ? onpick + "'" + f.id + "')" : onpick + "('" + f.id + "')"}">${Figuren.icon(f.id, col, 42)}${esc(f.name)}</button>`).join(''); }
+function setMode(m) { joinMode = m; err = ''; render(true); }
+function pickF(f) { pickFig = f; render(true); }
+function colorBtns() { return S.freeColors.map(c => `<button style="background:${c}" class="${c === pickColor ? 'sel' : ''}" onclick="pickColor='${c}';render(true)"></button>`).join(''); }
+function voteDist(pd) { const c = pd.groupCounts; if (!c) return ''; const tot = c.reduce((a, b) => a + b, 0); return `<div class="votedist">${c.map((n, i) => `<div class="vdrow ${i === pd.answer ? 'mine' : ''}"><b>${String.fromCharCode(97 + i)})</b><span class="vdbar"><i style="width:${tot ? Math.round(n / tot * 100) : 0}%"></i></span><span>${n}</span></div>`).join('')}</div>`; }
+function render(force) {
+  if (needRoom) { if ($('roomIn')) { $('roomErr').textContent = roomErr; return; } $('app').innerHTML = `<h1>BERUFE-RALLYE</h1><div class="roomform"><div class="hint">Scanne den QR-Code am Beamer oder gib den Raumcode ein:</div><input id="roomIn" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="CODE"><button class="ok" style="font-size:22px;padding:16px" onclick="enterCode()">Weiter</button><div class="err" id="roomErr">${esc(roomErr)}</div></div>`; $('roomIn').onkeydown = e => { if (e.key === 'Enter') enterCode(); }; return; }
+  if (!S || !S.room) return; const figScroll = $('figBox') ? $('figBox').scrollTop : 0; try { render2(force); } finally { if ($('figBox')) $('figBox').scrollTop = figScroll; }
+}
+function render2(force) { const app = $('app'); const me = S.players.find(p => p.id === myId);
   if (!me) {
-    if ($('name') && document.activeElement === $('name') && $('colorsBox')) { if (!S.freeColors.includes(pickColor)) pickColor = S.freeColors[0]; $('colorsBox').innerHTML = colorBtns(); return; }
-    const keep = $('name') ? $('name').value : '';
+    const modeKey = joinMode + (teamPickId || '');
+    if ($('name') && $('modeBox') && $('modeBox').dataset.k === modeKey && !$('colorsBox') && !force && [$('name'), $('teamName')].includes(document.activeElement)) return;
+    if ($('name') && $('colorsBox') && $('modeBox') && $('modeBox').dataset.k === modeKey && ([$('name'), $('teamName')].includes(document.activeElement) || force)) { if (!S.freeColors.includes(pickColor)) pickColor = S.freeColors[0]; if (S.freeFigures && S.freeFigures.length && !S.freeFigures.includes(pickFig)) pickFig = S.freeFigures[0]; $('colorsBox').innerHTML = colorBtns(); $('figBox').innerHTML = figBtns(pickColor, pickFig, 'pickF'); $('preview').innerHTML = Figuren.icon(pickFig, pickColor, 70); $('figname').textContent = Figuren.name(pickFig); return; }
+    const keep = $('name') ? $('name').value : '', keepTeam = $('teamName') ? $('teamName').value : '';
+    const teams = S.players.filter(p => p.isTeam); if (joinMode === 'team' && !teams.length) joinMode = 'solo'; if (teamPickId && !teams.some(t => t.id === teamPickId)) teamPickId = null;
     if (!pickColor || !S.freeColors.includes(pickColor)) pickColor = S.freeColors[0];
-    app.innerHTML = `<h1>BERUFE-RALLYE</h1><div class="hint">${S.phase === 'lobby' ? 'Gib deinen Namen ein und wähle eine Farbe.' : 'Das Spiel läuft schon – du kannst noch einsteigen.'}</div>
+    if (S.freeFigures && S.freeFigures.length && !S.freeFigures.includes(pickFig)) pickFig = S.freeFigures[0];
+    app.innerHTML = `<h1>BERUFE-RALLYE <small style="font-size:15px;color:#ffd43b;letter-spacing:2px">Raum ${esc(roomCode)}</small></h1><div class="hint">${S.phase === 'lobby' ? 'Gib deinen Namen ein, wähle deinen Beruf als Figur und eine Farbe.' : 'Das Spiel läuft schon – du kannst noch einsteigen.'}</div>
       <input id="name" maxlength="20" placeholder="Dein Name" autocomplete="off" value="${esc(keep)}">
-      <div class="colors" id="colorsBox">${colorBtns()}</div>
+      <div class="seg" id="modeBox" data-k="${joinMode + (teamPickId || '')}">${[['solo', '🙋 Allein'], ['new', '👥 Team gründen'], ['team', '🤝 Team beitreten']].map(([m, t]) => `<button class="${joinMode === m ? 'sel' : ''}" ${m === 'team' && !teams.length ? 'disabled' : ''} onclick="setMode('${m}')">${t}</button>`).join('')}</div>
+      ${joinMode === 'new' ? `<input id="teamName" maxlength="20" placeholder="Teamname (z. B. Die Profis)" autocomplete="off" value="${esc(keepTeam)}"><div class="hint">Weitere Handys können deinem Team beitreten und teilen sich die Figur. Jedes Team-Handy darf würfeln und antworten.</div>` : ''}
+      ${joinMode === 'team' ? `<div class="hint">Wähle dein Team – ihr spielt gemeinsam mit einer Figur:</div><div class="teamlist">${teams.map(t => `<button class="${t.id === teamPickId ? 'sel' : ''}" onclick="teamPickId='${t.id}';render(true)">${Figuren.icon(t.figure, t.color, 40)}<span><b>${esc(t.name)}</b><br><small>${t.members.map(m => esc(m.name)).join(', ')}</small></span></button>`).join('')}</div>` : `
+      <div style="display:flex;align-items:center;gap:12px"><div id="preview">${Figuren.icon(pickFig, pickColor, 70)}</div><div class="hint"><b id="figname">${esc(Figuren.name(pickFig))}</b><br>Jede Figur und jede Farbe gibt es nur einmal.</div></div>
+      <div class="hint">Figur (Beruf) – zum Scrollen wischen:</div><div class="figchoices big" id="figBox">${figBtns(pickColor, pickFig, 'pickF')}</div>
+      <div class="hint">Farbe:</div><div class="colors" id="colorsBox">${colorBtns()}</div>`}
       ${S.teams ? `<select id="team" onchange="pickTeam=this.value">${S.teams.map(t => `<option ${t.name === pickTeam ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>` : ''}
       <button id="joinBtn" class="ok" style="font-size:22px;padding:18px" onclick="join()" ${joining ? 'disabled' : ''}>Beitreten</button><div class="err">${esc(err)}</div>`;
     $('name').onkeydown = e => { if (e.key === 'Enter') join(); };
@@ -35,28 +63,51 @@ function render() {
   const cur = S.players[S.turn], myTurn = S.phase === 'playing' && cur && cur.id === myId, pd = S.pending;
   let body = '';
   if (S.phase === 'lobby') {
-    body = `<div class="status">Du bist dabei! Warte, bis die Spielleitung startet.<br><span class="hint">${S.players.length} Spieler in der Lobby</span></div>
+    body = `<div class="status">Du bist dabei! Warte, bis die Spielleitung startet.<br><span class="hint">${S.players.length} Spieler/Teams in der Lobby${me.isTeam ? ' · Team: ' + me.members.map(m => esc(m.name)).join(', ') : ''}</span></div>
+      <div class="hint">Figur ändern:</div><div class="figchoices big">${figBtns(me.color, me.figure, "sock.emit('setFigure',")}</div>
       <div class="hint">Farbe ändern:</div><div class="colors">${S.freeColors.map(c => `<button style="background:${c}" onclick="sock.emit('setColor','${c}')"></button>`).join('')}</div>
       ${S.teams ? `<select onchange="sock.emit('setTeam',this.value)">${S.teams.map(t => `<option ${t.name === me.team ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>` : ''}`;
   } else if (S.phase === 'finished') {
     const w = S.winner; const iWon = w && (w.playerId === myId || (w.team && w.team === me.team));
-    body = `<div class="status" style="text-align:center;font-size:26px">${iWon ? '🏆 Gewonnen!' : '🏁 Spiel vorbei'}<br><b>${esc(w.team || w.name)}</b> gewinnt.</div>`;
+    body = `<div class="status" style="text-align:center;font-size:26px">${iWon ? '🏆 Gewonnen!' : '🏁 Spiel vorbei'}${w.timeMode ? '<br><small>⏱ Zeit abgelaufen</small>' : ''}<br><b>${esc(w.team || w.name)}</b> gewinnt.</div>`;
   } else if (pd && pd.type === 'question' && pd.playerId === myId) {
-    if (pd.resolved) body = `<div class="status" style="font-size:24px;text-align:center">${pd.result ? '✅ ' + esc(pd.card.onCorrect) : '❌ ' + esc(pd.card.onWrong)}</div>`;
-    else body = `<div class="status"><b>Fragekarte ${esc(pd.card.nr ?? '')}</b><br><span style="white-space:pre-line">${esc(pd.card.question)}</span></div><div class="qa">${pd.card.answers.map((a, i) => `<button class="${pd.answer === i ? 'chosen' : ''}" ${pd.answer !== null ? 'disabled' : ''} onclick="sock.emit('answer',${i})"><b>${String.fromCharCode(97 + i)})</b> ${esc(a)}</button>`).join('')}</div>${pd.answer !== null ? '<div class="hint">Antwort abgegeben – jetzt wird besprochen, die Spielleitung entscheidet.</div>' : ''}`;
+    if (pd.resolved) body = `<div class="status" style="font-size:26px;text-align:center">${pd.delta > 0 ? '✅' : pd.delta < 0 ? '↩' : '•'} Bewertung: <b>${pd.delta > 0 ? '+' : ''}${pd.delta || 0} Felder</b></div>${voteDist(pd)}`;
+    else if (pd.stage === 'personal') body = `<div class="phonecard">${Fragekarte.html(pd.card, {})}</div><div class="hint">🔒 Leg dich fest – deine Antwort bleibt geheim, bis die Gruppe abgestimmt hat:</div><div class="qa abc">${pd.card.answers.map((a, i) => `<button onclick="if(confirm('Antwort ${String.fromCharCode(97 + i)}) festlegen? Das kann nicht mehr geändert werden.'))sock.emit('answer',${i})"><b>${String.fromCharCode(97 + i)})</b></button>`).join('')}</div>`;
+    else body = `<div class="phonecard">${Fragekarte.html(pd.card, { chosen: pd.answer })}</div><div class="status locked">🔒 Festgelegt: <b>${String.fromCharCode(97 + pd.answer)})</b><br>${pd.stage === 'group' ? `Die Gruppe stimmt ab (${pd.groupVoted}/${pd.groupTotal}) …` : 'Jetzt wird besprochen – die Spielleitung bewertet (−5 bis +5 Felder).'}</div>${voteDist(pd)}`;
+  } else if (pd && pd.type === 'question' && !pd.resolved) {
+    const p = S.players.find(x => x.id === pd.playerId), L = i => String.fromCharCode(97 + i) + ')';
+    if (pd.stage === 'personal') body = `<div class="status">❓ Fragekarte für <b>${esc(p && p.name)}</b> – ${esc(p && p.name)} legt sich gerade fest. Gleich stimmst du ab.</div><div class="phonecard">${Fragekarte.html(pd.card, {})}</div>`;
+    else if (pd.stage === 'group' && pd.canVote && pd.vote === null) body = `<div class="hint">🗳 Was würdest <b>du</b> tun? (${esc(p && p.name)} hat sich schon festgelegt)</div><div class="phonecard">${Fragekarte.html(pd.card, {})}</div><div class="qa abc">${pd.card.answers.map((a, i) => `<button onclick="sock.emit('vote',${i})"><b>${L(i)}</b></button>`).join('')}</div>`;
+    else if (pd.stage === 'group') body = `<div class="status">${pd.vote !== null ? `✔ Deine Stimme: <b>${L(pd.vote)}</b><br>` : ''}Warte auf die anderen (${pd.groupVoted}/${pd.groupTotal}) …</div><div class="phonecard">${Fragekarte.html(pd.card, { chosen: pd.vote })}</div>`;
+    else body = `<div class="status">❓ ${esc(p && p.name)} hat <b>${pd.answer != null ? L(pd.answer) : '–'}</b> gewählt${pd.vote !== null ? `, du <b>${L(pd.vote)}</b>` : ''}. Schau auf den Beamer – die Spielleitung bewertet.</div>${voteDist(pd)}`;
   } else if (pd && pd.type === 'info') {
     const who = S.players.find(x => x.id === pd.playerId);
     body = `<div class="status">${pd.kind === 'rutsche' ? '↩' : '🚓'} <b>${esc(who && who.name)}</b><br>${esc(pd.text)}</div>`;
+  } else if (pd && pd.type === 'action' && pd.playerId === myId) {
+    body = `<div class="hint">Deine Aktionskarte:</div><div class="phonecard">${Fragekarte.htmlAction(pd.card)}</div>`;
   } else if (pd) {
     const p = S.players.find(x => x.id === pd.playerId);
     body = `<div class="status">${pd.type === 'action' ? '📋 Aktionskarte' : '❓ Fragekarte'} für <b>${esc(p && p.name)}</b> – schau auf den Beamer.${pd.type === 'action' ? `<br>${esc(pd.card.text)}<br><b>${esc(pd.card.effectLabel)}</b>` : ''}</div>`;
+  } else if (S.paused && S.phase === 'playing') {
+    body = `<div class="status" style="text-align:center;font-size:24px">⏸ Pause – die Spielleitung hat das Spiel angehalten.</div>`;
+  } else if (myTurn && Date.now() < rollingUntil) {
+    body = `<div class="status" style="text-align:center;font-size:24px">${Effekte.dice(1 + Math.floor(Math.random() * 6), true)} Würfelt …</div>`;
   } else if (myTurn) {
-    body = `<button class="bigroll" id="rollBtn" ${S.busy ? 'disabled' : ''} onclick="sock.emit('roll')">🎲 ${me.jail ? S.need + ' würfeln!' : 'Würfeln'}</button><div class="hint" style="text-align:center">${me.jail ? '🚓 Finanzpolizei: Nur mit einer ' + S.need + ' geht es weiter.' : 'Du bist dran!'}</div>`;
+    body = `<button class="bigroll" id="rollBtn" ${S.busy ? 'disabled' : ''} onclick="sock.emit('roll')">🎲 ${me.jail ? S.need + ' würfeln!' : 'Würfeln'}</button>${S.turnDeadline ? `<div class="hint" style="text-align:center" id="pcount"></div>` : ''}<div class="hint" style="text-align:center">${me.jail ? '🚓 Finanzpolizei: Nur mit einer ' + S.need + ' geht es weiter.' : 'Du bist dran!'}</div>`;
   } else {
     body = `<div class="status">${esc(cur && cur.name)} ist dran …${me.skip ? '<br>⏸ Du setzt nächste Runde aus.' : ''}</div>`;
   }
-  const lr = S.lastRoll && S.lastRoll.playerId === myId ? `<div class="hint">Letzter Wurf: ${S.lastRoll.value}</div>` : '';
-  app.innerHTML = `<div class="me"><span class="dot" style="background:${me.color}"></span>${esc(me.name)}${me.team ? ` <small>(${esc(me.team)})</small>` : ''}<span style="margin-left:auto">${me.pos === 0 ? 'START' : me.pos === S.last ? 'ZIEL' : 'Feld ' + me.pos}</span></div>${me.jail && !myTurn ? '<div class="hint">🚓 Finanzpolizei – im nächsten Zug eine ' + S.need + ' würfeln.</div>' : ''}${body}${lr}
-   ${S.phase === 'lobby' ? `<button class="ghost" onclick="sock.emit('leave');localStorage.removeItem('${KEY}');myId=null">Verlassen</button>` : ''}`;
+  const lr = S.lastRoll && S.lastRoll.playerId === myId && Date.now() >= rollingUntil && S.phase === 'playing' ? `<div class="status" style="display:flex;align-items:center">${Effekte.dice(S.lastRoll.value)} Dein letzter Wurf: <b style="margin-left:6px">${S.lastRoll.value}</b></div>` : '';
+  app.innerHTML = `<div class="me">${Figuren.icon(me.figure, me.color, 34)}${me.isTeam ? `👥 ${esc(me.name)} <small>(${esc(memberName)})</small>` : esc(me.name) + (me.team ? ` <small>(${esc(me.team)})</small>` : '')}<span style="margin-left:auto">${me.pos === 0 ? 'START' : me.pos === S.last ? 'ZIEL' : 'Feld ' + me.pos}</span></div>${me.jail && !myTurn ? '<div class="hint">🚓 Finanzpolizei – im nächsten Zug eine ' + S.need + ' würfeln.</div>' : ''}${body}${lr}
+   ${S.phase === 'lobby' ? `<button class="ghost" onclick="sock.emit('leave');localStorage.removeItem(tokKey());myId=null">Verlassen</button>` : ''}`;
 }
+// Bildschirm anlassen, solange die Seite offen ist (sofern das Handy es kann)
+let wake = null; async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } } catch (_) {} }
+document.addEventListener('visibilitychange', keepAwake); document.addEventListener('pointerdown', keepAwake);
+// Vibrieren + kurzer Ton, wenn man dran ist
+let wasMyTurn = false;
+sock.on('state', s => { const cur = s.players[s.turn], mine = s.phase === 'playing' && cur && cur.id === myId && !s.pending && !s.busy; if (mine && !wasMyTurn) { try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch (_) {} Effekte.play('spieler_beitritt', .5); } wasMyTurn = mine; });
+setInterval(() => { const e = $('pcount'); if (e && S && S.turnDeadline) e.textContent = '⏱ noch ' + Math.max(0, Math.ceil((S.turnDeadline - Date.now()) / 1000)) + ' s, dann wird automatisch gewürfelt'; }, 500);
+function fitCards() { document.querySelectorAll('.phonecard').forEach(w => { const fk = w.querySelector('.fk'); if (!fk) return; fk.style.transform = ''; Fragekarte.fit(fk); const k = w.clientWidth / fk.offsetWidth; fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left'; w.style.height = fk.offsetHeight * k + 'px'; }); }
+new MutationObserver(fitCards).observe(document.getElementById('app'), { childList: true });
 </script></body></html>

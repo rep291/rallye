@@ -1,0 +1,90 @@
+[
+ {
+  "id": "mechanik",
+  "name": "Kfz-Mechaniker/in"
+ },
+ {
+  "id": "koch",
+  "name": "Koch/Köchin"
+ },
+ {
+  "id": "friseur",
+  "name": "Friseur/in"
+ },
+ {
+  "id": "it",
+  "name": "IT-Techniker/in"
+ },
+ {
+  "id": "garten",
+  "name": "Gärtner/in"
+ },
+ {
+  "id": "labor",
+  "name": "Labortechniker/in"
+ },
+ {
+  "id": "lager",
+  "name": "Lagerlogistik"
+ },
+ {
+  "id": "tischler",
+  "name": "Tischler/in"
+ },
+ {
+  "id": "elektrik",
+  "name": "Elektriker/in"
+ },
+ {
+  "id": "pflege",
+  "name": "Pfleger/in"
+ },
+ {
+  "id": "polizei",
+  "name": "Polizist/in"
+ },
+ {
+  "id": "feuerwehr",
+  "name": "Feuerwehr"
+ },
+ {
+  "id": "maurer",
+  "name": "Maurer/in"
+ },
+ {
+  "id": "maler",
+  "name": "Maler/in"
+ },
+ {
+  "id": "baecker",
+  "name": "Bäcker/in"
+ },
+ {
+  "id": "verkauf",
+  "name": "Verkäufer/in"
+ },
+ {
+  "id": "buero",
+  "name": "Bürokaufmann/-frau"
+ },
+ {
+  "id": "arzt",
+  "name": "Arzt/Ärztin"
+ },
+ {
+  "id": "schweiss",
+  "name": "Metalltechniker/in"
+ },
+ {
+  "id": "fahrer",
+  "name": "Berufskraftfahrer/in"
+ },
+ {
+  "id": "landwirt",
+  "name": "Landwirt/in"
+ },
+ {
+  "id": "kiga",
+  "name": "Elementarpädagog/in"
+ }
+]

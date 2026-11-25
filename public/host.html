@@ -1,81 +1,180 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8"><title>BERUFE-RALLYE – Spielleitung</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/fragekarte.css"></head>
-<body><div class="host">
- <div class="boardwrap"><svg id="board"></svg></div>
+<body><div class="host" id="hostroot">
+ <div class="boardwrap"><svg id="board"></svg><div id="toast" class="toast"></div><div id="bigdice" class="bigdice"></div></div>
  <div class="side">
+  <div class="hudbuttons"><button class="ghost" id="fsbtn" onclick="toggleFS()" title="Vollbild">⛶ Vollbild</button><button class="ghost" id="mutebtn" onclick="toggleMute()" title="Ton an/aus"></button><button class="ghost" id="menubtn" onclick="toggleMenu()" style="display:none">☰ Menü</button></div>
   <div class="join" id="join"><div class="hint" id="joinhint">Mit dem Handy beitreten (gleiches WLAN):</div><img id="qr" alt="QR-Code"><div class="url" id="url"></div><div class="hint" id="alt"></div></div>
-  <div class="hint" style="font-size:12px">Kartensatz der App: 40 Aktion · 20 Fragen</div><div id="phase" style="font-size:20px;font-weight:700"></div>
-  <div id="dice" class="dicebig" style="text-align:center"></div>
+  <div class="hint cardcount" id="cardcount" style="font-size:12px"></div><div class="roomcode" id="roomcode"></div>
+  <div id="phase" class="phase" style="font-size:20px;font-weight:700"></div>
+  <div id="turnfig" class="turnfigure"></div>
+  <div id="dice" class="dicebig" style="text-align:center"></div><div id="countdown" class="countdown"></div>
   <ul class="plist" id="plist"></ul>
   <div class="ctrl" id="ctrl"></div>
   <ul class="log" id="log"></ul>
  </div>
 </div>
-<div class="overlay" id="pinov" style="z-index:20"><div class="card" style="max-width:460px"><h2 style="margin:0 0 10px">Spielleitung</h2><p>Bitte die Spielleitungs-PIN eingeben.</p><input id="pin" inputmode="numeric" autocomplete="off" style="font-size:34px;text-align:center;width:100%;padding:10px;border-radius:12px;border:2px solid #ccd" maxlength="12"><div class="err" id="pinerr" style="color:#c23b3b;min-height:1.4em;margin:8px 0"></div><button class="ok" style="font-size:22px;width:100%" onclick="sendPin()">Anmelden</button></div></div>
+<div class="overlay" id="pinov" style="z-index:20"><div class="card" style="max-width:460px"><h2 style="margin:0 0 10px">Spielleitung</h2><p>Bitte die Spielleitungs-PIN eingeben.</p><input id="pin" type="password" inputmode="numeric" autocomplete="off" style="font-size:34px;text-align:center;width:100%;padding:10px;border-radius:12px;border:2px solid #ccd" maxlength="12"><div class="err" id="pinerr" style="color:#c23b3b;min-height:1.4em;margin:8px 0"></div><button class="ok" style="font-size:22px;width:100%" onclick="sendPin()">Anmelden</button></div></div>
+<div class="overlay" id="settingsov" style="z-index:12"><div class="settingscard"><div class="settingstop"><h2>⚙ Spielleitung</h2><button class="ghost" onclick="closeSettings()">✕ Schließen</button></div><div id="settingsbody"></div></div></div>
 <div class="overlay" id="ov"><div class="card" id="card"></div></div>
-<script src="/vendor/socket.io.min.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script>
+<script src="/vendor/socket.io.min.js"></script><script src="/figuren.js"></script><script src="/effekte.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script>
 <script>
 const $ = id => document.getElementById(id), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let board, view, S; const sock = io();
+let board, view, S; const sock = io(); let roomCode = '', opening = false; const HOST_KEY = 'rallye_host_token';
 async function loadCfg() { board = (await (await fetch('/api/config')).json()).board; view = BoardView($('board'), board); if (S) render(S); }
-fetch('/api/join-info').then(r => r.json()).then(j => { $('qr').src = j.qr; $('url').textContent = j.url; if (j.online) $('joinhint').textContent = 'Mit dem Handy beitreten (Internet, kein WLAN nötig):'; $('alt').textContent = j.alternatives.length ? 'Falls nicht erreichbar: ' + j.alternatives.join(', ') : ''; });
+function joinInfo() { if (!roomCode) return; fetch('/api/join-info?r=' + roomCode).then(r => r.json()).then(j => { $('qr').src = j.qr; $('url').textContent = j.url; $('roomcode').innerHTML = '<small>RAUM</small> ' + roomCode; if (j.online) $('joinhint').textContent = 'Mit dem Handy beitreten (Internet):'; $('alt').textContent = j.alternatives.length ? 'Falls nicht erreichbar: ' + j.alternatives.join(', ') : ''; }); }
+function openRoom() { if (opening) return; opening = true; sock.emit('host:open', { token: localStorage.getItem(HOST_KEY) }, r => { opening = false; if (!r.ok) { $('pinerr').textContent = r.error; return; } localStorage.setItem(HOST_KEY, r.token); roomCode = r.code; joinInfo(); }); }
+sock.on('roomClosed', r => { localStorage.removeItem(HOST_KEY); $('pinerr').textContent = 'Der Raum wurde geschlossen (' + r.why + '). Hier neu anmelden.'; hostOk = false; $('pinov').classList.add('show'); });
 loadCfg(); sock.on('reloadConfig', loadCfg);
 sock.on('hostError', m => alert(m));
-let hostOk = false;
-function sendPin(p) { const pin = p || $('pin').value.trim(); if (!pin) return; sock.emit('host:auth', pin, r => { if (r.ok) { sessionStorage.setItem('hostPin', pin); $('pinerr').textContent = ''; } else { sessionStorage.removeItem('hostPin'); $('pinerr').textContent = r.error; } }); }
-sock.on('hostAuth', a => { hostOk = !a.required; $('pinov').classList.toggle('show', a.required); if (a.required) { const sp = sessionStorage.getItem('hostPin'); if (sp) sendPin(sp); else setTimeout(() => $('pin').focus(), 50); } });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && $('pinov').classList.contains('show')) sendPin(); });
-sock.on('state', s => { S = s; if (board) render(s); });
+let hostOk = false, menuOpen = false;
+function sendPin(p) { const pin = p || $('pin').value.trim(); if (!pin) return; sock.emit('host:auth', pin, r => { if (r.ok) { sessionStorage.setItem('hostPin', pin); $('pin').value = ''; $('pinerr').textContent = ''; } else { sessionStorage.removeItem('hostPin'); $('pinerr').textContent = r.error; } }); }
+sock.on('hostAuth', a => { hostOk = !a.required; $('pinov').classList.toggle('show', a.required); if (a.required) { const sp = sessionStorage.getItem('hostPin'); if (sp) sendPin(sp); else setTimeout(() => $('pin').focus(), 50); } else openRoom(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && $('pinov').classList.contains('show')) sendPin(); if (e.key === 'Escape') { if ($('settingsov').classList.contains('show')) closeSettings(); else if (menuOpen) toggleMenu(); } });
+function toggleFS() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+document.addEventListener('fullscreenchange', () => { $('fsbtn').textContent = document.fullscreenElement ? '⛶ Fenster' : '⛶ Vollbild'; });
+function toggleMute() { Effekte.toggle(); updMute(); }
+function updMute() { $('mutebtn').textContent = Effekte.muted ? '🔇 Ton aus' : '🔊 Ton an'; } updMute();
+function toggleMenu() { menuOpen = !menuOpen; $('hostroot').classList.toggle('menuopen', menuOpen); $('menubtn').textContent = menuOpen ? '✕ Schließen' : '☰ Menü'; }
+$('hostroot').addEventListener('click', e => { if (menuOpen && e.target === $('hostroot')) toggleMenu(); });
 const emit = (e, a) => sock.emit(e, a);
+let lastRollAt = 0, lastPendKey = '', lastPhase = '', diceTimer = null;
+sock.on('state', s => { const prev = S; S = s; if (board) { effects(prev, s); render(s); } });
+function fieldLabel(pos, s) { return pos === 0 ? 'START' : pos === s.last ? 'ZIEL' : 'Feld ' + pos; }
+function toast(html, cls, ms) { const t = $('toast'); t.className = 'toast show ' + (cls || ''); t.innerHTML = html; clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms || 2600); }
+let lastResolved = '', lastCount = null;
+function effects(prev, s) {
+  // Wuerfel
+  if (s.lastRoll && s.lastRoll.at !== lastRollAt && s.phase === 'playing') {
+    const first = !lastRollAt; lastRollAt = s.lastRoll.at;
+    if (!first || (Date.now() - s.lastRoll.at < 3000)) {
+      Effekte.play('wuerfel_rollen'); setTimeout(() => Effekte.play('wuerfel_landet'), 760); const bd = $('bigdice'); clearInterval(diceTimer); bd.classList.add('show');
+      let n = 0; diceTimer = setInterval(() => { bd.innerHTML = Effekte.dice(1 + Math.floor(Math.random() * 6), true); if (++n > 6) { clearInterval(diceTimer); bd.innerHTML = Effekte.dice(s.lastRoll.value, false); setTimeout(() => bd.classList.remove('show'), 900); } }, 110);
+    }
+  }
+  const pd = s.pending, key = pd ? pd.type + (pd.kind || '') + (pd.card ? pd.card.id : '') + pd.playerId + (pd.sliding ? 's' : '') : '';
+  if (key && key !== lastPendKey) {
+    const p = s.players.find(x => x.id === pd.playerId) || { name: '' };
+    if (pd.type === 'action') { Effekte.play('karte_aufdecken'); const e = pd.card.effectLabel || ''; setTimeout(() => Effekte.play(/aussetzen/.test(e) ? 'runde_aussetzen' : /vor|Noch einmal/.test(e) ? 'aktion_positiv' : /zurück/.test(e) ? 'aktion_negativ' : 'karte_aufdecken'), 900); }
+    if (pd.type === 'question') { Effekte.play('karte_aufdecken'); setTimeout(() => Effekte.play('frage_erscheint'), 350); }
+    if (pd.type === 'info') {
+      if (pd.kind === 'rutsche' && !pd.sliding) toast(`<b>↩ Rutsche!</b> ${esc(p.name)}: ${esc(pd.text)}`, 'slide', 2600);
+      if (pd.kind === 'finanzpolizei' || pd.kind === 'gesperrt' || pd.kind === 'frei') { if (pd.kind === 'finanzpolizei') Effekte.play('finanzpolizei_sirene'); toast(`<span class="beacon"></span><b>Finanzpolizei</b> · ${esc(p.name)}: ${esc(pd.text)}`, 'police', 3000); }
+    }
+  }
+  lastPendKey = key;
+  if (pd && pd.type === 'question' && pd.resolved && lastResolved !== pd.card.id + pd.playerId + pd.delta) { lastResolved = pd.card.id + pd.playerId + pd.delta; Effekte.play(pd.result ? 'richtig' : 'falsch'); }
+  if (s.phase === 'lobby' && lastCount != null && s.players.length > lastCount) Effekte.play('spieler_beitritt');
+  lastCount = s.players.length;
+  if (s.phase === 'playing' && lastPhase === 'lobby') Effekte.play('spiel_start');
+  Effekte.setLoop(s.phase === 'lobby' ? 'lobby_loop' : null);
+  if (s.phase === 'finished' && lastPhase && lastPhase !== 'finished') { Effekte.play('sieg_fanfare'); Effekte.confetti(); }
+  lastPhase = s.phase;
+}
 function render(s) {
-  const cur = s.players[s.turn];
-  view.update(s.players, s.stepMs || board.rules.stepMs, s.phase === 'playing' && cur ? cur.id : null);
-  $('phase').textContent = s.phase === 'lobby' ? `Lobby – ${s.players.length} Spieler` : s.phase === 'playing' ? `Am Zug: ${cur ? cur.name : '-'}` : 'Spiel beendet';
-  $('join').style.display = s.phase === 'playing' ? 'none' : '';
-  $('dice').textContent = s.lastRoll && s.phase === 'playing' ? '🎲 ' + s.lastRoll.value : '';
-  $('plist').innerHTML = s.players.map((p, i) => `<li class="${s.phase === 'playing' && i === s.turn ? 'cur' : ''} ${p.connected ? '' : 'off'}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.team ? ` <small>(${esc(p.team)})</small>` : ''}${p.skip ? ' ⏸' : ''}${p.jail ? ' 🚓 (6 nötig)' : ''}${p.connected ? '' : ' 📵'}<span class="pos">${p.pos === 0 ? 'START' : p.pos === s.last ? 'ZIEL' : 'Feld ' + p.pos}</span><button class="x" onclick="if(confirm('Entfernen?'))emit('host:kick','${p.id}')">✕</button></li>`).join('');
+  if (s.room && s.room.code !== roomCode) { roomCode = s.room.code; joinInfo(); }
+  if (view && view.setCounts) view.setCounts(s.deckSize);
+  $('cardcount').textContent = 'Kartensatz: ' + (s.cardCount ? s.cardCount.action + ' Aktion · ' + s.cardCount.question + ' Fragen' : '');
+  const cur = s.players[s.turn], playing = s.phase === 'playing';
+  view.update(s.players, { stepMs: s.stepMs || board.rules.stepMs, activeId: playing && cur ? cur.id : null, lastMove: s.lastMove, onSlide: () => Effekte.play('rutsche'), onHop: () => Effekte.play('figur_hopp'), onArrest: () => { Effekte.play('handschellen_klick'); setTimeout(() => Effekte.play('gefaengnis_tuer_zu'), 700); }, onRelease: () => Effekte.play('gefaengnis_tuer_auf') });
+  const compact = s.phase !== 'lobby'; $('hostroot').classList.toggle('compact', compact); $('menubtn').style.display = compact ? '' : 'none';
+  if (!compact && menuOpen) toggleMenu();
+  $('phase').textContent = s.paused ? '⏸ PAUSE' : s.phase === 'lobby' ? `Lobby – ${s.players.length} Spieler/Teams` + (s.room && s.room.settings.packs && s.room.settings.packs.length ? ' · Pakete: ' + s.room.settings.packs.length : '') : playing ? (compact ? 'Am Zug' : `Am Zug: ${cur ? cur.name : '-'}`) : 'Spiel beendet';
+  $('turnfig').innerHTML = playing && cur ? `${Figuren.icon(cur.figure, cur.color, 60)}<div style="font-weight:700;font-size:15px;margin-top:2px">${esc(cur.name)}</div><div class="hint" style="font-size:12px">${fieldLabel(cur.pos, s)}${cur.jail ? ' · 🚓 6 nötig' : ''}</div>` : '';
+  $('join').style.display = playing ? 'none' : '';
+  $('dice').innerHTML = s.lastRoll && playing ? `${Effekte.dice(s.lastRoll.value)}<span class="value">Letzter Wurf: ${s.lastRoll.value}</span>` : '';
+  $('plist').innerHTML = s.players.map((p, i) => `<li class="${playing && i === s.turn ? 'cur' : ''} ${p.connected ? '' : 'off'}">${Figuren.icon(p.figure, p.color, 22)}${esc(p.name)}${p.isTeam ? ` <small title="${esc(p.members.map(m => m.name).join(', '))}">👥 ${p.members.length}</small>` : ''}${p.skip ? ' ⏸' : ''}${p.jail ? ' 🚓' : ''}${p.connected ? '' : ' 📵'}<button class="x rename" title="Umbenennen" onclick="renamePlayer('${p.id}')">✎</button><span class="pos">${fieldLabel(p.pos, s)}</span><button class="x" onclick="if(confirm('Entfernen?'))emit('host:kick','${p.id}')">✕</button></li>`).join('');
   let c = '';
   if (s.phase === 'lobby') c += `<button class="ok" ${s.players.length < board.rules.minPlayers ? 'disabled' : ''} onclick="emit('host:start')">▶ Spiel starten</button>`;
-  if (s.phase === 'playing') c += `<button class="ghost" onclick="emit('host:rollFor')" ${s.pending || s.busy ? 'disabled' : ''}>🎲 Für ${esc(cur && cur.name)} würfeln</button><button class="ghost" onclick="emit('host:skipTurn')">⏭ Zug überspringen</button>`;
+  if (playing) c += `<button class="ghost" onclick="emit('host:pause',${!s.paused})">${s.paused ? '▶ Fortsetzen' : '⏸ Pause'}</button><button class="ghost" onclick="emit('host:rollFor')" ${s.pending || s.busy || s.paused ? 'disabled' : ''}>🎲 Für ${esc(cur && cur.name)} würfeln</button><button class="ghost" onclick="emit('host:skipTurn')">⏭ Zug überspringen</button>`;
   if (s.phase !== 'lobby') c += `<button class="ghost" onclick="emit('host:reset',true)">↺ Neue Runde</button>`;
   c += `<button class="ghost" onclick="if(confirm('Alle Spieler entfernen?'))emit('host:reset',false)">🗑 Neues Spiel</button><button class="ghost" onclick="emit('host:reload')">⟳ Karten/Brett neu laden</button>`;
+  c += `<button class="ghost" onclick="openSettings()">⚙ Einstellungen & Räume</button>`;
   $('ctrl').innerHTML = c;
   $('log').innerHTML = s.log.map(l => `<li>${esc(l.msg)}</li>`).join('');
   renderOverlay(s);
+  $('hostroot').classList.toggle('paused', !!s.paused);
 }
+let ovKey = '', evalView = false, evalSeen = false, evalTimer = null;
+function showEval(on) { clearTimeout(evalTimer); evalTimer = null; evalSeen = true; evalView = on; ovKey = ''; renderOverlay(S); }
+function evalHTML(s, print) {
+  const H = s.history || [], L = i => String.fromCharCode(97 + i) + ')', signed = n => n > 0 ? '+' + n : String(n);
+  const qs = H.filter(h => h.type === 'question'), acts = H.filter(h => h.type === 'action');
+  const per = s.winner.ranking.map(r => { const mine = qs.filter(q => q.playerId === r.id); return `<tr><td>${r.place}.</td><td>${print ? '' : Figuren.icon(r.figure, r.color, 22)} ${esc(r.name)}</td><td>${fieldLabel(r.pos, s)}</td><td>${mine.length}</td><td>${mine.length ? signed(mine.reduce((a, q) => a + q.delta, 0)) : '–'}</td><td>${acts.filter(a => a.playerId === r.id).length}</td></tr>`; }).join('');
+  const qrows = qs.map(q => { const tot = (q.counts || []).reduce((a, b) => a + b, 0); return `<div class="evq"><div class="evhead"><b>Fragekarte ${q.nr}</b> · ${esc(q.player)} · Bewertung <b>${signed(q.delta)}</b></div><div class="evtext">${esc(q.text)}</div><ul>${q.answers.map((a, i) => `<li class="${i === q.answer ? 'mine' : ''}"><b>${L(i)}</b> ${esc(a)}${i === q.answer ? ' <em>← Antwort</em>' : ''}<span class="evc">Gruppe: ${(q.counts || [])[i] || 0}${tot ? ' (' + Math.round(((q.counts || [])[i] || 0) / tot * 100) + ' %)' : ''}</span></li>`).join('')}</ul></div>`; }).join('') || '<p>Keine Fragekarten in dieser Runde.</p>';
+  const arows = acts.map(a => `<tr><td>${a.nr}</td><td>${esc(a.player)}</td><td>${esc(a.text)}</td><td>${esc(a.effect)}</td></tr>`).join('') || '<tr><td colspan="4">Keine Aktionskarten.</td></tr>';
+  const body = `<h1>📋 Auswertung – BERUFE-RALLYE</h1><p class="evmeta">Raum ${esc(roomCode)} · ${new Date().toLocaleString('de-AT')} · ${s.winner.timeMode ? 'Zeitlimit-Modus' : 'Ziel erreicht'} · Sieger: <b>${esc(s.winner.name)}</b></p>
+    <h2>Rangliste</h2><table class="evtable"><thead><tr><th>Platz</th><th>Spieler/Team</th><th>Feld</th><th>Fragen</th><th>Summe Bewertung</th><th>Aktionen</th></tr></thead><tbody>${per}</tbody></table>
+    <h2>Situationen mit Fragekarten (${qs.length})</h2>${qrows}<h2>Aktionskarten (${acts.length})</h2><table class="evtable"><thead><tr><th>Nr.</th><th>Wer</th><th>Situation</th><th>Folge</th></tr></thead><tbody>${arows}</tbody></table>`;
+  if (print) return body;
+  return `<div class="evaluation">${body}</div><div class="ctrl" style="justify-content:center;margin-top:12px"><button class="ghost dark" onclick="printEval()">🖨 Drucken / als PDF</button><button class="ghost dark" onclick="showEval(false)">🏆 Siegerehrung</button><button class="ok" onclick="emit('host:reset',true)">Neue Runde</button></div>`;
+}
+function printEval() {
+  const w = window.open('', '_blank'); if (!w) return alert('Bitte Pop-ups erlauben, um zu drucken.');
+  w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Auswertung BERUFE-RALLYE ${roomCode}</title><style>body{font:14px/1.4 Arial,sans-serif;margin:18mm;color:#111}h1{font-size:22px}h2{font-size:17px;margin-top:18px;border-bottom:2px solid #333}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}.evq{page-break-inside:avoid;border:1px solid #bbb;border-radius:6px;padding:6px 10px;margin:8px 0}.evq ul{margin:4px 0;padding-left:18px}.evq li.mine{font-weight:bold}.evc{float:right;color:#444;font-weight:normal}.evmeta{color:#444}</style></head><body>${evalHTML(S, true)}<script>setTimeout(()=>print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+function scaleCard(card) { const fk = card.querySelector('.fk'); Fragekarte.fit(fk); const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.55 / fk.offsetHeight); fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left'; const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto'; }
 function renderOverlay(s) {
   const ov = $('ov'), card = $('card'), pd = s.pending;
   if (s.phase === 'finished' && s.winner) {
+    const k = 'win' + s.winner.playerId + (evalView ? 'e' : ''); if (ovKey === k) return; ovKey = k;
+    if (!evalTimer && !evalView && !evalSeen) evalTimer = setTimeout(() => { evalTimer = null; evalSeen = true; evalView = true; renderOverlay(S); }, 7000);
+    if (evalView) { ov.classList.add('show'); card.classList.remove('qcard'); card.innerHTML = evalHTML(s, false); return; }
     ov.classList.add('show'); card.classList.remove('qcard');
-    card.innerHTML = `<div class="winner"><div style="font-size:90px">🏆</div><h1>${esc(s.winner.team ? s.winner.team + ' gewinnt!' : s.winner.name + ' gewinnt!')}</h1>${s.winner.team ? `<div class="who">${esc(s.winner.name)} ist als Erste/r im Ziel</div>` : ''}<ol>${s.winner.ranking.map(r => `<li><span class="dot" style="display:inline-block;background:${r.color}"></span> ${esc(r.name)} – ${r.pos === s.last ? 'ZIEL' : 'Feld ' + r.pos}</li>`).join('')}</ol><button class="ok" onclick="emit('host:reset',true)">Neue Runde</button></div>`;
+    const R = s.winner.ranking, pod = [R[1], R[0], R[2]];
+    const pc = (r, cls) => r ? `<div class="${cls}">${Figuren.icon(r.figure, r.color, cls === 'top' ? 86 : 64)}<strong>${r.place}. ${esc(r.name)}</strong><span>${fieldLabel(r.pos, s)}</span></div>` : '<div style="visibility:hidden"></div>';
+    card.innerHTML = `<div class="winner"><h1>🏆 ${esc(s.winner.team ? s.winner.team + ' gewinnt!' : s.winner.name + ' gewinnt!')}</h1>${s.winner.timeMode ? `<div class="who">⏱ Zeit abgelaufen – am weitesten gekommen</div>` : s.winner.team ? `<div class="who">${esc(s.winner.name)} ist als Erste/r im Ziel</div>` : ''}<div class="podium">${pc(pod[0], 'second')}${pc(pod[1], 'top')}${pc(pod[2], 'third')}</div>${R.length > 3 ? `<div class="ranklist">${R.slice(3).map(r => `<div class="rankrow"><b>${r.place}.</b>${Figuren.icon(r.figure, r.color, 20)} ${esc(r.name)}<span class="rankpos">${fieldLabel(r.pos, s)}</span></div>`).join('')}</div>` : ''}<div class="ctrl" style="justify-content:center;margin-top:14px"><button class="ghost dark" onclick="showEval(true)">📋 Auswertung</button><button class="ok" onclick="emit('host:reset',true)">Neue Runde</button></div></div>`;
     return;
   }
-  if (!pd) { ov.classList.remove('show'); return; }
+  if (s.phase !== 'finished') { evalView = false; evalSeen = false; clearTimeout(evalTimer); evalTimer = null; }
+  if (!pd || pd.type === 'info') { ov.classList.remove('show'); ovKey = ''; return; }
   const p = s.players.find(x => x.id === pd.playerId) || { name: '?' };
-  ov.classList.add('show');
-  if (pd.type === 'info') {
-    card.classList.remove('qcard');
-    const sym = pd.kind === 'rutsche' ? '↩' : '🚓';
-    card.innerHTML = `<div style="font-size:76px">${sym}</div><div class="who">${esc(p.name)}</div><h2>${esc(pd.text)}</h2>`; return;
-  }
+  const k = pd.type + pd.card.id + pd.playerId + (pd.answer ?? '') + (pd.stage || '') + (pd.groupVoted || 0) + (pd.resolved ? 'r' + pd.delta : '') + (s.paused ? 'pause' : ''); if (k === ovKey) return; ovKey = k;
+  ov.classList.add('show'); card.classList.add('qcard');
   if (pd.type === 'action') {
-    card.classList.add('qcard');
-    card.innerHTML = `<div class="who" style="margin:0 0 10px">Aktionskarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.htmlAction(pd.card)}</div>`;
-    const fk = card.querySelector('.fk'); Fragekarte.fit(fk);
-    const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.62 / fk.offsetHeight);
-    fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left';
-    const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto';
+    card.innerHTML = `<div class="who" style="margin:0 0 10px">${Figuren.icon(p.figure, p.color, 30)} Aktionskarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.htmlAction(pd.card)}</div>`;
+    scaleCard(card);
   } else {
     const L = i => String.fromCharCode(97 + i) + ')';
-    const res = pd.resolved ? `<div class="res" style="color:${pd.result ? 'var(--ok)' : 'var(--bad)'}">${pd.result ? '✅ ' + esc(pd.card.onCorrect) : '❌ ' + esc(pd.card.onWrong)}</div>`
-      : `<div class="who">${pd.answer === null ? esc(p.name) + ' wählt am Handy …' : esc(p.name) + ' wählt ' + L(pd.answer) + ' – kurz besprechen, dann entscheidet die Spielleitung.'}</div><div class="ctrl" style="justify-content:center;margin-top:14px"><button class="ok" onclick="emit('host:judge',true)">Richtig (${esc(pd.card.onCorrect)})</button><button class="bad" onclick="emit('host:judge',false)">Falsch (${esc(pd.card.onWrong)})</button></div>`;
-    card.classList.add('qcard');
-    card.innerHTML = `<div class="who" style="margin:0 0 10px">Fragekarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.html(pd.card, { chosen: pd.answer, right: pd.card.correct })}</div>${res}`;
-    const fk = card.querySelector('.fk'); Fragekarte.fit(fk);
-    const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.62 / fk.offsetHeight);
-    fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left';
-    const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto';
-    return;
+    const signed = n => n > 0 ? '+' + n : String(n), range = Math.min(5, s.judgeRange || 5);
+    const counts = pd.groupCounts, tot = counts ? counts.reduce((a, b) => a + b, 0) : 0;
+    const dist = counts ? `<div class="votedist"><div class="vdtitle">Spielerantwort <b>${pd.answer != null ? L(pd.answer) : '–'}</b> · Gruppe (${tot} Stimme${tot === 1 ? '' : 'n'}):</div>${counts.map((c, i) => `<div class="vdrow ${i === pd.answer ? 'mine' : ''}"><b>${L(i)}</b><span class="vdbar"><i style="width:${tot ? Math.round(c / tot * 100) : 0}%"></i></span><span>${c}${tot ? ' · ' + Math.round(c / tot * 100) + ' %' : ''}</span></div>`).join('')}</div>` : '';
+    const stageTxt = s.paused ? '⏸ Spiel pausiert' : pd.stage === 'personal' ? `🔒 ${esc(p.name)} legt sich am Handy fest … (geheim)` : pd.stage === 'group' ? `🔒 Antwort festgelegt. Die Gruppe stimmt jetzt ab: <b>${pd.groupVoted}/${pd.groupTotal}</b> <button class="ghost small" onclick="emit('host:revealVotes')">Abstimmung beenden</button>` : 'Besprechen und bewerten (−' + range + ' bis +' + range + ' Felder):';
+    const res = pd.resolved ? `${dist}<div class="res">Bewertung: <b>${signed(pd.delta || 0)} Felder</b></div>` : `<div class="who">${stageTxt}</div>${dist}${pd.stage === 'reveal' ? `<div class="judgebar">${Array.from({length:range*2+1},(_,i) => i-range).map(n => `<button class="${n < 0 ? 'bad' : n > 0 ? 'ok' : 'zero'}" data-delta="${n}" ${s.paused ? 'disabled' : ''} onclick="emit('host:judge',${n})">${signed(n)}</button>`).join('')}</div><div class="ctrl judgequick"><button class="ok" ${s.paused ? 'disabled' : ''} onclick="emit('host:judge',true)">Richtig ${signed(s.quickRight ?? 2)}</button><button class="bad" ${s.paused ? 'disabled' : ''} onclick="emit('host:judge',false)">Falsch ${signed(s.quickWrong ?? 0)}</button></div>` : ''}`;
+    card.innerHTML = `<div class="who" style="margin:0 0 10px">${Figuren.icon(p.figure, p.color, 30)} Fragekarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.html(pd.card, { chosen: pd.stage === 'reveal' || pd.resolved ? pd.answer : null, right: pd.card.correct })}</div>${res}`;
+    scaleCard(card);
   }
 }
+// Einstellungen (Raum-bezogen), Raumuebersicht ohne fremde Namen, Spieler verwalten
+function renamePlayer(id) { const p = S.players.find(p => p.id === id); if (!p) return; const name = prompt('Neuer Name:', p.name); if (name && name.trim()) emit('host:rename', { id, name }); }
+function closeSettings() { $('settingsov').classList.remove('show'); }
+function openSettings() {
+  if (!S || !S.room) return; const st = S.room.settings;
+  const ck = k => st[k] !== false ? 'checked' : '';
+  $('settingsbody').innerHTML = `<p class="hint">Raum <b>${roomCode}</b> · Änderungen gelten nur hier. Bei laufenden Karten greifen Regeländerungen ab dem nächsten Zug.</p>
+    <div class="settingsgrid">
+     <label>Finanzpolizei: nach wie vielen Fehlversuchen frei? <small>0 = nur mit 6</small><input id="set_fp" type="number" min="0" max="20" value="${st.fpMaxTries ?? board.rules.finanzpolizei.maxTries ?? 0}"></label>
+     <label class="check"><input id="set_exact" type="checkbox" ${(st.finishExact ?? board.rules.finishExact) ? 'checked' : ''}> Exakte Zahl fürs Ziel (sonst zurückprallen)</label>
+     <label class="check"><input id="set_a" type="checkbox" ${ck('actionCards')}> Aktionskarten aktiv</label>
+     <label class="check"><input id="set_q" type="checkbox" ${ck('questionCards')}> Fragekarten aktiv</label>
+     <label>Zugzeit-Limit (Sekunden)<small>0 = aus, danach automatischer Wurf</small><input id="set_turn" type="number" min="0" max="600" value="${st.turnTimeSec || 0}"></label>
+     <label>Fragezeit-Limit (Sekunden)<small>0 = aus; danach Schnellwahl Falsch</small><input id="set_question" type="number" min="0" max="600" value="${st.questionTimeSec ?? board.rules.questionTimeSec ?? 0}"></label>
+     <label>Zeitlimit-Modus (Minuten)<small>0 = aus; bei Ablauf gewinnt, wer am weitesten ist</small><input id="set_game" type="number" min="0" max="240" value="${st.gameTimeMin || 0}" ${S.phase === 'playing' ? 'disabled title="Nur vor Rundenbeginn"' : ''}></label>
+     <div class="packs"><b>Kartenpakete</b> <small>${S.phase === 'lobby' ? 'nur vor Rundenbeginn wählbar; keine Auswahl = alle Karten' : 'gesperrt – Runde läuft'}</small>${(S.packs || []).map(pk => `<label class="check"><input type="checkbox" class="packbox" value="${pk.id}" ${(st.packs || []).includes(pk.id) ? 'checked' : ''} ${S.phase === 'lobby' ? '' : 'disabled'}> ${esc(pk.name)}</label>`).join('')}</div>
+     <label>Bewertungsbereich (max. ±5)<input id="set_range" type="number" min="1" max="5" value="${st.judgeRange || 5}"></label>
+     <label>Schnellwahl Richtig / Falsch<div class="two"><input id="set_right" type="number" min="-5" max="5" value="${st.quickRight ?? 2}"><input id="set_wrong" type="number" min="-5" max="5" value="${st.quickWrong ?? 0}"></div></label>
+     <label>Sound-Lautstärke <input id="set_vol" type="range" min="0" max="100" value="${Math.round(Effekte.volume * 100)}" oninput="Effekte.setVolume(this.value / 100)"></label>
+     <button class="ghost" onclick="toggleMute()">🔊 Ton an/aus</button>
+    </div><button class="ok" onclick="saveSettings()">Einstellungen speichern</button>
+    <h3>Spieler verwalten</h3><div class="manageplayers">${S.players.map(p => `<div>${Figuren.icon(p.figure,p.color,34)}<b>${esc(p.name)}</b><span>${fieldLabel(p.pos,S)}</span><button class="ghost" onclick="renamePlayer('${p.id}');setTimeout(openSettings,200)">✎ Umbenennen</button><button class="bad" onclick="if(confirm('Spieler entfernen?')){emit('host:kick','${p.id}');setTimeout(openSettings,200)}">✕</button></div>`).join('')}</div>
+    <h3>Räume auf diesem Server</h3><p class="hint">Pro Raum genau eine Spielleitung (mit eigenem Host-Token). Andere Gruppen sind nur als anonyme Übersicht sichtbar, nicht steuerbar.</p><div id="roomslist">Lädt …</div><button class="ghost" onclick="refreshRooms()">⟳ Aktualisieren</button><p><button class="bad" onclick="if(confirm('Diesen Raum schließen und alle trennen?')){closeSettings();emit('host:closeRoom')}">Diesen Raum schließen</button></p>`;
+  $('settingsov').classList.add('show'); refreshRooms();
+}
+function saveSettings() { const n = id => +$(id).value; emit('host:settings', { fpMaxTries:n('set_fp'), finishExact:$('set_exact').checked, actionCards:$('set_a').checked, questionCards:$('set_q').checked, turnTimeSec:n('set_turn'), ...(S.phase !== 'playing' ? { gameTimeMin:n('set_game') } : {}), ...(S.phase === 'lobby' ? { packs:[...document.querySelectorAll('.packbox:checked')].map(x => x.value) } : {}), questionTimeSec:n('set_question'), judgeRange:n('set_range'), quickRight:n('set_right'), quickWrong:n('set_wrong') }); closeSettings(); toast('✓ Einstellungen für Raum ' + roomCode + ' gespeichert', '', 1800); }
+function refreshRooms() { sock.emit('host:rooms', list => { if (!$('roomslist')) return; $('roomslist').innerHTML = `<table class="roomtable"><thead><tr><th>Raum</th><th>Status</th><th>Spieler</th><th>Host</th></tr></thead><tbody>${list.map(r => `<tr class="${r.mine?'mine':''}"><td><b>${r.code}</b>${r.mine?' · deiner':''}</td><td>${r.paused?'Pause':r.phase === 'lobby'?'Lobby':r.phase === 'playing'?'Spiel läuft':'Beendet'}</td><td>${r.players} (${r.connected} online)</td><td>${r.hostOnline?'verbunden':'offline'}</td></tr>`).join('')}</tbody></table>`; }); }
+setInterval(() => { if (!S) return; const d = S.turnDeadline, t = $('countdown'); const g = S.gameDeadline ? S.gameDeadline - Date.now() : S.gameRemaining; const mm = ms => { const x = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0'); };
+  if (t) t.innerHTML = (S.phase === 'playing' && g ? `<div class="gametime">⏳ ${mm(g)}</div>` : '') + (d && !S.paused && !S.busy ? '⏱ Zug: ' + Math.max(0, Math.ceil((d - Date.now()) / 1000)) + ' s' : ''); }, 500);
+// Tastatur: F = Vollbild, M = Ton an/aus (Esc schliesst das Menue, siehe oben)
+document.addEventListener('keydown', e => { if (e.target.closest('input,textarea')) return; if (e.key === 'f' || e.key === 'F') $('fsbtn').click(); if (e.key === 'm' || e.key === 'M') $('mutebtn').click(); });
 </script></body></html>

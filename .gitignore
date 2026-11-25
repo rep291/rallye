@@ -3,3 +3,4 @@ node_modules/
 screens/
 _src/
 *.zip
+state/
