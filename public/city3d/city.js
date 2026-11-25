@@ -550,8 +550,8 @@ export function mountCity(canvas, board, opts = {}) {
       _desired.set(x + 1.9, 1.85, z + 2.15);
       _look.set(x, 1.15, z + 0.1);
     } else if (shot === 'berufe') {
-      _desired.set(11.65, 6.1, 21.2);
-      _look.set(11.65, 1.05, 5.2);
+      _desired.set(11.65, 11.4, 17.6);
+      _look.set(11.65, 0.35, 5.4);
     } else if (shot === 'park') {
       const p = contentOf(2).userData.park || { x: 20, z: 6.2 };
       _desired.set(p.x - 1, 8.2, p.z + 11);
@@ -620,11 +620,12 @@ export function mountCity(canvas, board, opts = {}) {
       const spawned = lib.spawn(JOB_MODEL[id], { lod: 1, outline: 0.016, scale: FIG_SCALE });
       const col = i % 11;
       const row = Math.floor(i / 11);
-      spawned.root.position.set(2.4 + col * 1.85, 0, 3.1 + row * 4.3);
+      spawned.root.position.set(2.2 + col * 1.9, 0, 2.2 + row * 6.4);
       spawned.root.rotation.y = 0;
       const tag = makeNameSprite(JOB_LABEL[id] || id);
-      tag.scale.set(2.4, 0.62, 1);
-      tag.position.y = 2.2;
+      tag.scale.set(1.15, 0.3, 1);
+      tag.position.y = 1.82;
+      tag.material.depthTest = true;
       spawned.root.add(tag);
       spawned.ready.then(() => {
         if (gear.prop) lib.attachProp(spawned.model, gear.prop, gear.socket || 'Socket_Hand_R');
