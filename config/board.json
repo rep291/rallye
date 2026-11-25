@@ -22,7 +22,7 @@
   "sectors": [],
   "rules": {
     "dice": 6,
-    "finishExact": false,
+    "finishExact": true,
     "questionMode": "host",
     "questionTimeSec": 0,
     "stepMs": 260,
@@ -56,8 +56,8 @@
     },
     "finanzpolizei": {
       "need": 6,
-      "moveOnRelease": true,
-      "maxTries": 0
+      "maxTries": 0,
+      "afterRelease": "rollAgain"
     },
     "chainCards": false
   },
@@ -766,13 +766,13 @@
       "y": 407,
       "type": "rutsche",
       "label": "99",
-      "to": 89
+      "to": 87
     },
     {
       "id": 100,
       "x": 811.8,
       "y": 439,
-      "type": "normal",
+      "type": "frage",
       "label": "100"
     },
     {
@@ -810,7 +810,7 @@
       "y": 227.5,
       "w": 6.8,
       "h": 5.4,
-      "size": 4.0,
+      "size": 4,
       "bg": "#fff0a2",
       "color": "#81550a"
     },
@@ -820,7 +820,7 @@
       "y": 227.5,
       "w": 5.6,
       "h": 5.4,
-      "size": 4.0,
+      "size": 4,
       "bg": "#e5d0fb",
       "color": "#2a2b63"
     }
