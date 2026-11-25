@@ -134,11 +134,11 @@ export function buildCity(scene, layout, board) {
   const ground = new THREE.PlaneGeometry(Math.max(40, gw), Math.max(40, gd));
   ground.rotateX(-Math.PI / 2);
   ground.translate(cx, 0, cz);
-  addGeo(solid, ground, '#7eae58');
+  addGeo(solid, ground, '#63b85c');
 
-  ribbon(solid, pts, 1.55, 0.07, '#5a6270');
-  ribbon(solid, sideLine(pts, 1, 2.45, 4.15), 0.7, 0.09, '#d2c8b6');
-  ribbon(solid, sideLine(pts, -1, 2.45, 4.15), 0.7, 0.09, '#d2c8b6');
+  ribbon(solid, pts, 1.15, 0.045, '#e4c07a');
+  ribbon(solid, sideLine(pts, 1, 2.15, 3.5), 0.55, 0.06, '#f3e2b0');
+  ribbon(solid, sideLine(pts, -1, 2.15, 3.5), 0.55, 0.06, '#f3e2b0');
 
   const tileColor = {
     start: colors.start || '#2e9e5b',
@@ -153,16 +153,14 @@ export function buildCity(scene, layout, board) {
   for (const p of pts) {
     const col = tileColor[p.type] || tileColor.normal;
     const big = p.type === 'start' || p.type === 'ziel';
-    addBox(solid, big ? 1.7 : 1.35, 0.1, big ? 1.7 : 1.35, p.x, TILE_Y, p.z, col, yawFacing(p.tx, p.tz));
-    if (p.type !== 'normal') {
-      addBox(solid, 0.28, 0.28, 0.28, p.x, TILE_Y + 0.2, p.z, '#ffffff');
-    }
+    const rad = big ? 0.92 : 0.7;
+    addCyl(solid, rad + 0.08, rad + 0.08, 0.08, p.x, 0.08, p.z, '#fff6e4', 12);
+    addCyl(solid, rad, rad * 0.92, 0.2, p.x, 0.2, p.z, col, 12);
   }
 
   const npcs = [];
-  for (const b of layout.buildings) furnish(solid, glass, b, npcs);
 
-  const decor = makeDecor(scene, layout, rand(102));
+  const decor = [];
   const prisons = layout.prisons.map(pr => makePrison(scene, pr));
   const podium = makePodium(scene, pts[pts.length - 1]);
   makeArch(scene, pts[0], 'START', '#146b38', -1);
@@ -193,9 +191,11 @@ export function buildCity(scene, layout, board) {
     scene.add(glassMesh);
   }
 
-  const npcRoots = npcs.map(n => spawnNpc(scene, n));
+  const npcRoots = [];
   const peds = spawnPeds(scene, pedPaths, 18);
-  peds.mesh.castShadow = true;
+  peds.mesh.visible = false;
+  peds.mesh.count = 0;
+  peds.active = 0;
   const car = makePoliceCar();
   car.visible = false;
   car.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -214,11 +214,14 @@ export function buildCity(scene, layout, board) {
         const slot = npcs[i].slot || 0;
         n.root.visible = slot < (preset.npcs || 1);
       });
-      const keep = Math.max(0, Math.min(18, preset.peds | 0));
-      peds.mesh.count = keep;
-      peds.active = keep;
+      if (!peds.replaced) {
+        const keep = Math.max(0, Math.min(18, preset.peds | 0));
+        peds.mesh.count = keep;
+        peds.active = keep;
+      }
       const frac = preset.decor == null ? 1 : preset.decor;
-      for (const mesh of decor) mesh.count = Math.max(0, Math.round(mesh.userData.fullCount * frac));
+      for (const mesh of decor) if (mesh.userData && mesh.userData.fullCount) mesh.count = Math.max(0, Math.round(mesh.userData.fullCount * frac));
+      if (scene.userData.detail) scene.userData.detail.visible = frac > 0.6;
     },
   };
 }

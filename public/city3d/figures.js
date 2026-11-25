@@ -14,6 +14,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 const SKIN = '#f0c3a0';
 const geos = new Map();
@@ -247,6 +248,7 @@ export function createPlayerVisual(player, catalog, loader) {
     skin: SKIN,
     hair: '#2c241c',
   });
+  placeholder.visible = false;
   tilt.add(placeholder);
   const api = {
     root,
@@ -301,7 +303,8 @@ export function updateVisual(api, mode, t, dt, catalog) {
   if (!api) return;
   if (api.mixer && api.model) {
     const names = (catalog && catalog.clips) || {};
-    const want = mode === 'sit' ? (names.sit || ['sit', 'sitting', 'jail'])
+    const want = mode === 'cheer' ? (names.cheer || ['victory', 'cheer', 'yes'])
+      : mode === 'sit' ? (names.sit || ['sitdown', 'sit', 'sitting', 'jail'])
       : (mode === 'walk' ? (names.walk || ['walk', 'running', 'run'])
         : (names.idle || ['idle', 'stand', 'idle_01']));
     const clip = clipByNames(api.clips, want) || clipByNames(api.clips, names.idle || ['idle']) || null;
@@ -312,6 +315,10 @@ export function updateVisual(api, mode, t, dt, catalog) {
       api.action = null;
       if (clip) {
         api.action = api.mixer.clipAction(clip);
+        if (mode === 'sit' || mode === 'cheer') {
+          api.action.setLoop(THREE.LoopOnce, 1);
+          api.action.clampWhenFinished = true;
+        }
         api.action.reset().fadeIn(0.15).play();
       }
     }
@@ -329,6 +336,79 @@ export function updateVisual(api, mode, t, dt, catalog) {
     return;
   }
   pose(api.placeholder, mode, t);
+}
+
+const ROSTER = ['Casual_Male', 'Casual_Female', 'Casual2_Male', 'Suit_Male', 'Worker_Female'];
+
+const SKIN_COLOR = new THREE.Color('#f0c09a');
+const HAIR_COLOR = new THREE.Color('#6b3f28');
+
+/** Assimp schreibt die Albedo-Farben viel zu dunkel. Hier bekommen Haut, Haar und Outfit klare Farben. */
+export function paintCharacter(model, tint) {
+  const outfit = new THREE.Color(tint || '#3d7ff2');
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = false;
+    o.frustumCulled = false;
+    const list = Array.isArray(o.material) ? o.material : [o.material];
+    const next = list.map(m => {
+      const c = m.clone();
+      const n = (m.name || '').toLowerCase();
+      if (n.includes('skin') || n.includes('face')) c.color.copy(SKIN_COLOR);
+      else if (n.includes('hair')) c.color.copy(HAIR_COLOR);
+      else if (n.includes('shirt') || n.includes('pants')) c.color.copy(outfit);
+      else if (n.includes('belt')) c.color.set('#5a3b28');
+      c.metalness = 0.04;
+      c.roughness = 0.78;
+      return c;
+    });
+    o.material = next.length === 1 ? next[0] : next;
+  });
+}
+
+function hashId(id) {
+  let h = 0;
+  const s = String(id || '');
+  for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function standOnGround(obj, height) {
+  obj.scale.set(1, 1, 1);
+  obj.position.set(0, 0, 0);
+  obj.rotation.set(0, 0, 0);
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const s = height / (size.y || 1);
+  obj.scale.setScalar(s);
+  obj.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(obj);
+  obj.position.y -= fitted.min.y;
+  const center = new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3());
+  obj.position.x -= center.x;
+  obj.position.z -= center.z;
+  obj.userData.baseY = obj.position.y;
+}
+
+/** Quaternius-Figur aus dem geladenen Katalog. Shirt und Hose in der Spielerfarbe. */
+export function equipFromLibrary(api, lib, player) {
+  if (!api || api.model || !lib || !lib.chars) return;
+  const ids = ROSTER.filter(id => lib.chars[id]);
+  if (!ids.length) return;
+  const id = ids[hashId(player.id) % ids.length];
+  const gltf = lib.chars[id];
+  const model = cloneSkinned(gltf.scene);
+  standOnGround(model, 1.72);
+  model.rotation.y = Math.PI;
+  paintCharacter(model, player.color || '#3d7ff2');
+  api.tilt.add(model);
+  api.placeholder.visible = false;
+  api.model = model;
+  api.mixer = new THREE.AnimationMixer(model);
+  api.clips = {};
+  for (const clip of gltf.animations || []) api.clips[clip.name.toLowerCase()] = clip;
 }
 
 export function makeTextPlane(text, opts = {}) {

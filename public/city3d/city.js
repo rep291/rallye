@@ -9,8 +9,9 @@
 import * as THREE from 'three';
 import { buildLayout, TILE_Y, yawFacing, kartenStimmung } from './layout.js';
 import { buildCity, stepPeds } from './scenery.js';
+import { loadWorldAssets, dressWorld, stepCrowd } from './assets.js';
 import {
-  createPlayerVisual, updateVisual, setCuffs, createLoader, makeNameSprite, makeTextPlane, pose,
+  createPlayerVisual, updateVisual, setCuffs, createLoader, makeNameSprite, makeTextPlane, pose, equipFromLibrary,
 } from './figures.js';
 
 // dpr ist die Obergrenze vor devicePixelRatio. Schatten 0 = aus, sonst Kantenlänge der Karte.
@@ -58,10 +59,10 @@ export function mountCity(canvas, board, opts = {}) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x8ec8ee);
-  scene.fog = new THREE.Fog(0xc5e4f5, 28, 120);
-  const hemi = new THREE.HemisphereLight(0xdde9ff, 0x6d8a48, 0.92);
-  const sun = new THREE.DirectionalLight(0xfff6e4, 1.15);
+  scene.background = skyGradient();
+  scene.fog = new THREE.Fog(0xf3e2c4, 38, 168);
+  const hemi = new THREE.HemisphereLight(0xfff4dd, 0x6fbf62, 0.95);
+  const sun = new THREE.DirectionalLight(0xfff1d6, 1.25);
   sun.position.set(30, 48, 18);
   sun.target.position.set(0, 0, 0);
   sun.shadow.mapSize.set(1024, 1024);
@@ -72,7 +73,7 @@ export function mountCity(canvas, board, opts = {}) {
   sun.shadow.camera.far = 80;
   scene.add(hemi, sun, sun.target);
 
-  const camera = new THREE.PerspectiveCamera(48, 1, 0.15, 420);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.15, 480);
   const loader = createLoader();
   let catalog = emptyCatalog();
   fetch('/city3d/figures.json').then(r => r.ok ? r.json() : null).then(j => {
@@ -82,6 +83,13 @@ export function mountCity(canvas, board, opts = {}) {
 
   let layout = buildLayout(board.fields || []);
   let built = buildCity(scene, layout, board);
+  let worldLib = null;
+  function applyWorld() {
+    if (!worldLib) return;
+    dressWorld(scene, layout, worldLib, built);
+    for (const pawn of players.values()) equipFromLibrary(pawn.visual, worldLib, pawn);
+  }
+  loadWorldAssets(loader).then(lib => { worldLib = lib; applyWorld(); }).catch(err => console.warn(err));
   const players = new Map();
   let state = null;
   let stepMs = 260;
@@ -173,6 +181,7 @@ export function mountCity(canvas, board, opts = {}) {
       if (top) burst(confetti, top.x, top.y + 1, top.z, 8);
     }
     stepNpcs(t);
+    stepCrowd(built, dt);
     stepCar(dt, t);
     stepCamera(dt, t);
     renderer.render(scene, camera);
@@ -278,6 +287,7 @@ export function mountCity(canvas, board, opts = {}) {
   function createPawn(p) {
     const visual = createPlayerVisual(p, catalog, loader);
     visual.load(catalog, loader);
+    if (worldLib) equipFromLibrary(visual, worldLib, p);
     scene.add(visual.root);
     const nameSprite = makeNameSprite(p.name);
     visual.root.add(nameSprite);
@@ -468,6 +478,7 @@ export function mountCity(canvas, board, opts = {}) {
     }
     if (t >= 2.05) {
       pawn.mode = 'cell';
+      pawn.cellCamUntil = performance.now() + 3200;
       if (prison) pawn.pos.copy(prison.seat);
       if (carJob && carJob.pawn === pawn) carJob.phase = 'out';
     }
@@ -552,7 +563,7 @@ export function mountCity(canvas, board, opts = {}) {
     const blink = Math.floor(t * 8) % 2 === 0;
     car.userData.red.visible = blink;
     car.userData.blue.visible = !blink;
-    for (const w of car.userData.wheels) w.rotation.x += dt * (carJob.phase === 'wait' ? 0 : 14);
+      if (car.userData.wheels) for (const w of car.userData.wheels) w.rotation.x += dt * (carJob.phase === 'wait' ? 0 : 14);
     if (carJob.phase === 'in') {
       const u = ease(Math.min(1, carJob.t / 0.75));
       car.position.lerpVectors(carFrom, carTo, u);
@@ -586,8 +597,8 @@ export function mountCity(canvas, board, opts = {}) {
     let height = 6;
     if (celebrate && built.podium) {
       const g = built.podium.group;
-      _desired.set(g.position.x + 7, 5.2, g.position.z + 8);
-      wantLook = _look.set(g.position.x, 1.3, g.position.z);
+      _desired.set(g.position.x + 11, 10, g.position.z + 14);
+      wantLook = _look.set(g.position.x, 1.4, g.position.z);
       scene.fog.far = 150;
     } else {
       const pawn = followPawn();
@@ -595,15 +606,16 @@ export function mountCity(canvas, board, opts = {}) {
         const f = layout.points[Math.max(0, Math.min(layout.points.length - 1, pawn.index || 0))];
         const inside = !!(f && f.building);
         const chase = pawn.mode === 'arrest' || pawn.mode === 'cell' || pawn.mode === 'release';
+        const sliding = pawn.hop && pawn.hop.back;
         if (chase && pawn.prison && f) {
           // Von schräg oben in die offene Zelle, die Tür bleibt im Bild.
           const seat = pawn.prison.seat;
-          _desired.set(f.x * 0.45 + seat.x * 0.55, 6.2, f.z * 0.45 + seat.z * 0.55);
+          _desired.set(f.x * 0.42 + seat.x * 0.58, 7.4, f.z * 0.42 + seat.z * 0.58);
           _look.set(seat.x, 0.7, seat.z);
           wantLook = _look;
         } else {
-          dist = inside ? 6.2 : 8.6;
-          height = inside ? 4.1 : 5.6;
+          dist = sliding ? 18 : inside ? 11 : 12;
+          height = sliding ? 14 : inside ? 9 : 9.4;
           const hasFace = pawn.face.lengthSq() > 0.0001;
           const tx = hasFace ? pawn.face.x : ((f && f.tx) || 1);
           const tz = hasFace ? pawn.face.y : ((f && f.tz) || 0);
@@ -612,12 +624,12 @@ export function mountCity(canvas, board, opts = {}) {
           _look.set(pawn.pos.x + (tx / len) * 2.4, pawn.pos.y + 1.15, pawn.pos.z + (tz / len) * 2.4);
           wantLook = _look;
         }
-        scene.fog.far = tier === 'niedrig' ? 80 : 120;
+        scene.fog.far = tier === 'niedrig' ? 110 : 170;
       } else {
         const b = layout.bounds;
         const cx = (b.minX + b.maxX) / 2;
         const cz = (b.minZ + b.maxZ) / 2;
-        _desired.set(cx + Math.sin(t * 0.07) * 10, 42, cz + 38);
+        _desired.set(cx + Math.sin(t * 0.07) * 8, 52, cz + 46);
         wantLook = _look.set(cx, 0, cz);
       }
     }
@@ -650,7 +662,7 @@ export function mountCity(canvas, board, opts = {}) {
     let jailed = null;
     for (const pawn of players.values()) {
       if (pawn.hop || pawn.mode === 'arrest' || pawn.mode === 'release') moving = pawn;
-      else if (pawn.mode === 'cell') jailed = pawn;
+      else if (pawn.mode === 'cell' && pawn.cellCamUntil && performance.now() < pawn.cellCamUntil) jailed = pawn;
     }
     if (moving) return moving;
     if (jailed) return jailed;
@@ -768,8 +780,10 @@ export function mountCity(canvas, board, opts = {}) {
 
   function rebuild(next) {
     disposeBuilt();
+    scene.userData.dressed = false;
     layout = buildLayout((next && next.fields) || []);
     built = buildCity(scene, layout, next || { colors: {} });
+    applyWorld();
     built.setQuality(PRESETS[tier]);
     for (const pawn of players.values()) {
       pawn.born = true;
@@ -849,6 +863,23 @@ export function mountCity(canvas, board, opts = {}) {
       };
     },
   };
+}
+
+function skyGradient() {
+  const c = document.createElement('canvas');
+  c.width = 2;
+  c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0, '#5aa6ef');
+  grd.addColorStop(0.45, '#b7e4fb');
+  grd.addColorStop(0.78, '#ffe3bf');
+  grd.addColorStop(1, '#ffd39a');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 function emptyCatalog() {
