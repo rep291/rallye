@@ -8,13 +8,13 @@ import {
 import { buildZone, applyDecor } from './zonebuild.js';
 import {
   createPlayerVisual, updateVisual, createLoader, makeNameSprite, equipFromLibrary,
-  paintCharacter,
+  paintCharacter, makePerson, setCuffs,
 } from './figures.js';
 
 const PRESETS = {
-  niedrig: { dpr: 0.75, npcs: 1, fill: 0.35, decor: 0.4 },
-  mittel: { dpr: 1, npcs: 2, fill: 1, decor: 1 },
-  hoch: { dpr: 1.25, npcs: 3, fill: 1, decor: 1 },
+  niedrig: { dpr: 0.75, npcs: 1, fill: 0.35, decor: 0.4, puffs: 0 },
+  mittel: { dpr: 1, npcs: 2, fill: 1, decor: 1, puffs: 4 },
+  hoch: { dpr: 1.25, npcs: 3, fill: 1, decor: 1, puffs: 8 },
 };
 const DPR_CAP = 1.25;
 const Q = '/city3d/models/quaternius/';
@@ -38,16 +38,16 @@ const TYPE_DE = {
 
 const SHOP_JOBS = {
   schlosserei: [
-    { model: 'Worker_Male', tint: '#3d5a8a', steps: [['walk', 1.3], ['punch', 1.2], ['wait', 1.1], ['pickup', 0.8]] },
+    { model: 'Worker_Male', tint: '#3d5a8a', steps: [['walk', 1.3], ['punch', 1.2, 'spark'], ['wait', 1.1], ['pickup', 0.8]] },
     { model: 'Worker_Female', tint: '#e08a2c', steps: [['walk', 1.2], ['pickup', 0.8], ['carry', 1.3], ['wait', 1.0]] },
   ],
   kueche: [
-    { model: 'Chef_Male', tint: '#f4f7fb', steps: [['walk', 1.1], ['wait', 1.6], ['pickup', 0.8], ['walk', 1.0]] },
-    { model: 'Chef_Female', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 1.8], ['pickup', 0.7]] },
+    { model: 'Chef_Male', tint: '#f4f7fb', steps: [['walk', 1.1], ['wait', 1.8, 'steam'], ['pickup', 0.8], ['walk', 1.0]] },
+    { model: 'Chef_Female', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 1.8, 'steam'], ['pickup', 0.7]] },
   ],
   labor: [
-    { model: 'Doctor_Female_Young', tint: '#e7eef8', steps: [['walk', 1.2], ['wait', 1.8], ['pickup', 0.8]] },
-    { model: 'Doctor_Male_Young', tint: '#e7eef8', steps: [['walk', 1.3], ['wait', 1.6], ['walk', 1.1]] },
+    { model: 'Doctor_Female_Young', tint: '#e7eef8', steps: [['walk', 1.2], ['wait', 1.8, 'steam'], ['pickup', 0.8]] },
+    { model: 'Doctor_Male_Young', tint: '#e7eef8', steps: [['walk', 1.3], ['wait', 1.6, 'steam'], ['walk', 1.1]] },
   ],
   lager: [
     { model: 'Worker_Female', tint: '#c48a2a', steps: [['walk', 1.1], ['pickup', 0.8], ['carry', 1.4], ['wait', 1.0]] },
@@ -62,7 +62,7 @@ const SHOP_JOBS = {
     { model: 'Casual_Female', tint: '#f6e7ee', steps: [['sit', 8]] },
   ],
   baustelle: [
-    { model: 'Worker_Male', tint: '#e0b04a', steps: [['walk', 1.2], ['punch', 1.4], ['wait', 1.0]] },
+    { model: 'Worker_Male', tint: '#e0b04a', steps: [['walk', 1.2], ['punch', 1.4, 'spark'], ['wait', 1.0]] },
     { model: 'Worker_Female', tint: '#f2c14a', steps: [['pickup', 0.8], ['carry', 1.4], ['wait', 1.1]] },
   ],
   krankenhaus: [
@@ -70,7 +70,7 @@ const SHOP_JOBS = {
     { model: 'Doctor_Male_Young', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 2.0], ['walk', 1.2]] },
   ],
   autowerkstatt: [
-    { model: 'Worker_Male', tint: '#1f7a45', steps: [['walk', 1.2], ['wait', 1.6], ['punch', 1.2], ['wait', 0.8]] },
+    { model: 'Worker_Male', tint: '#1f7a45', steps: [['walk', 1.2], ['wait', 1.6], ['punch', 1.2, 'spark'], ['wait', 0.8]] },
     { model: 'Casual2_Male', tint: '#3d7ff2', steps: [['pickup', 0.8], ['carry', 1.5], ['wait', 1.2]] },
   ],
 };
@@ -97,15 +97,19 @@ export function mountCity(canvas, board, opts = {}) {
   if (!webglAvailable()) throw new Error('WebGL2 fehlt');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.setClearColor(0xe4f1fa, 1);
   renderer.shadowMap.enabled = false;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xe4f1fa);
-  scene.fog = new THREE.Fog(0xe4f1fa, 28, 78);
-  scene.add(new THREE.HemisphereLight(0xe4f1fa, 0x8fcf5a, 0.85));
-  const sun = new THREE.DirectionalLight(0xfff6ea, 1.2);
-  sun.position.set(14, 24, 10);
+  scene.background = skyTexture();
+  scene.fog = new THREE.Fog(0xf7f1e3, 70, 150);
+  scene.add(new THREE.HemisphereLight(0xfff3e4, 0x7fba45, 0.92));
+  const sun = new THREE.DirectionalLight(0xffe0a8, 1.45);
+  sun.position.set(10, 26, 22);
   scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xfff1d6, 0);
+  fill.position.set(-12, 14, 18);
+  scene.add(fill);
   const camera = new THREE.PerspectiveCamera(40, 1, 0.12, 180);
 
   let layout = buildLayout(board.fields || []);
@@ -135,6 +139,7 @@ export function mountCity(canvas, board, opts = {}) {
   let fpsStamp = performance.now();
   let last = performance.now();
   let slideSeq = '';
+  let shot = null;
   const loader = createLoader();
   const catalog = { scaleToHeight: 1.7, clips: { idle: ['idle'], walk: ['walk'], sit: ['sitdown'], cheer: ['victory'] } };
   const camPos = new THREE.Vector3(8, 16, 22);
@@ -253,6 +258,8 @@ export function mountCity(canvas, board, opts = {}) {
     const jail = jailFor(f.zone);
     pawn.jail = jail;
     pawn.slotPos = takeSlot(pawn, jail);
+    const car = carOf(f.zone);
+    pawn.carFrom = car ? car.position.clone() : null;
     parentTo(pawn, f.zone);
   }
 
@@ -260,6 +267,40 @@ export function mountCity(canvas, board, opts = {}) {
     pawn.mode = 'release';
     pawn.phaseT = 0;
     pawn.phase = 'out';
+    showCuffs(pawn, false);
+    const car = carOf(zoneOf(pawn.target));
+    pawn.carFrom = car ? car.position.clone() : null;
+  }
+
+  function carOf(zone) {
+    const content = contentOf(zone);
+    return content ? content.userData.policeCar : null;
+  }
+
+  function showCuffs(pawn, on) {
+    if (pawn.visual && pawn.visual.placeholder) setCuffs(pawn.visual.placeholder, on);
+    if (!pawn.cuffBits && pawn.visual) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: '#e4e8ee' });
+      const geo = new THREE.TorusGeometry(0.09, 0.025, 5, 8);
+      const a = new THREE.Mesh(geo, mat);
+      const b = new THREE.Mesh(geo, mat);
+      a.position.set(-0.18, 0.95, -0.1);
+      b.position.set(0.18, 0.95, -0.1);
+      g.add(a, b);
+      pawn.visual.root.add(g);
+      pawn.cuffBits = g;
+    }
+    if (pawn.cuffBits) pawn.cuffBits.visible = !!on;
+  }
+
+  function driveCar(car, from, to, u) {
+    if (!car || !from) return;
+    car.position.x = from.x + (to.x - from.x) * u;
+    car.position.z = from.z + (to.z - from.z) * u;
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    if (dx * dx + dz * dz > 0.04) car.rotation.y = Math.atan2(dx, dz);
   }
 
   function activeId() {
@@ -348,23 +389,39 @@ export function mountCity(canvas, board, opts = {}) {
     pawn.phaseT += dt;
     const f = localPoint(pawn.arrestField == null ? pawn.index : pawn.arrestField);
     const jail = pawn.jail || jailFor(f.zone);
-    const door = jail ? { lx: jail.lx, lz: jail.lz - 1.7 } : { lx: f.lx, lz: f.lz };
+    const door = jail ? { lx: jail.lx, lz: jail.lz - 1.9 } : { lx: f.lx, lz: f.lz };
     const seat = pawn.slotPos || door;
+    const car = carOf(f.zone);
+    const home = pawn.carFrom || (car && car.userData.home) || { x: door.lx, z: door.lz };
+    const beside = { x: f.lx + 1.45, z: f.lz + 0.15 };
+    const cellPark = { x: (jail ? jail.lx : door.lx) + 2.3, z: (jail ? jail.lz : door.lz) + 1.5 };
     const t = pawn.phaseT;
     if (t < 1.4) {
-      const u = t / 1.4;
-      pawn.pos.set(f.lx + (door.lx - f.lx) * u * 0.35, TILE_Y, f.lz + (door.lz - f.lz) * u * 0.35);
-    } else if (t < 2.4) {
+      driveCar(car, home, beside, t / 1.4);
       pawn.pos.set(f.lx, TILE_Y, f.lz);
+    } else if (t < 2.4) {
+      driveCar(car, home, beside, 1);
+      pawn.pos.set(f.lx, TILE_Y, f.lz);
+      showCuffs(pawn, true);
     } else if (t < 4.9) {
       const u = (t - 2.4) / 2.5;
-      pawn.pos.set(f.lx + (door.lx - f.lx) * u, TILE_Y, f.lz + (door.lz - f.lz) * u);
+      driveCar(car, beside, cellPark, u);
+      if (car) pawn.pos.set(car.position.x - 0.95, TILE_Y, car.position.z + 0.15);
+      else pawn.pos.set(f.lx + (door.lx - f.lx) * u, TILE_Y, f.lz + (door.lz - f.lz) * u);
+      showCuffs(pawn, true);
     } else if (t < 6.1) {
       const u = (t - 4.9) / 1.2;
+      driveCar(car, beside, cellPark, 1);
       pawn.pos.set(door.lx + (seat.lx - door.lx) * u, TILE_Y, door.lz + (seat.lz - door.lz) * u);
+      showCuffs(pawn, true);
     } else {
       pawn.mode = 'cell';
       pawn.pos.set(seat.lx, TILE_Y, seat.lz);
+      showCuffs(pawn, true);
+      if (car && car.userData.home) {
+        car.position.copy(car.userData.home);
+        car.rotation.y = 0;
+      }
     }
     pawn.face.set((door.lx - pawn.pos.x) || 0.01, (door.lz - pawn.pos.z) || 0);
     pawn.yaw = yawFacing(pawn.face.x, pawn.face.y);
@@ -377,6 +434,8 @@ export function mountCity(canvas, board, opts = {}) {
     const from = pawn.slotPos || { lx: pawn.pos.x, lz: pawn.pos.z };
     const u = Math.min(1, pawn.phaseT / 1.8);
     pawn.pos.set(from.lx + (back.lx - from.lx) * u, TILE_Y, from.lz + (back.lz - from.lz) * u);
+    const car = carOf(back.zone);
+    if (car && pawn.carFrom && car.userData.home) driveCar(car, pawn.carFrom, car.userData.home, u);
     if (u >= 1) {
       pawn.mode = 'free';
       pawn.slot = -1;
@@ -434,7 +493,85 @@ export function mountCity(canvas, board, opts = {}) {
     }
   }
 
+  function applyShot() {
+    if (shot === 'kueche') {
+      const b = layout.buildings.find(x => x.id === 'kueche');
+      const along = !b || b.alongX !== false;
+      const door = along ? b.length / 2 + 4.2 : b.depth / 2 + 4.2;
+      _desired.set(b.lx + (along ? door : 1.6), 5.2, b.lz + (along ? 4.8 : door));
+      _look.set(b.lx - (along ? 0.4 : 0), 1.15, b.lz);
+    } else if (shot === 'festnahme') {
+      const f = layout.points.find(p => p.zone === 2 && p.type3d === 'finanzpolizei') || layout.points.find(p => p.zone === 2);
+      const jail = layout.prisons.find(j => j.zone === 2);
+      const mx = (f.lx + (jail ? jail.lx : f.lx)) * 0.5 + 1.2;
+      const mz = (f.lz + (jail ? jail.lz : f.lz)) * 0.5;
+      _desired.set(mx + 4.5, 6.2, mz + 10.5);
+      _look.set(mx, 0.85, mz);
+    } else if (shot === 'park') {
+      _desired.set(14, 7.2, 13.5);
+      _look.set(22, 0.7, 5.6);
+    } else if (shot === 'bahnhof') {
+      _desired.set(18, 4.6, 13.2);
+      _look.set(32, 1.15, 6.4);
+    } else {
+      _desired.set(16, 20, 44);
+      _look.set(26, 0.6, 15);
+    }
+  }
+
+  function poseArrestStill() {
+    const f = layout.points.find(p => p.zone === 2 && p.type3d === 'finanzpolizei') || layout.points.find(p => p.zone === 2);
+    const content = contentOf(2);
+    const car = content.userData.policeCar;
+    if (car && f) {
+      car.position.set(f.lx + 1.5, 0, f.lz + 0.15);
+      car.rotation.y = Math.PI * 0.85;
+    }
+    if (f && !content.userData.demo) {
+      const person = makePerson({ shirt: '#E6197E', pants: '#243044', hair: '#241c18' });
+      person.position.set(f.lx, -0.06, f.lz);
+      person.rotation.y = -0.6;
+      setCuffs(person, true);
+      const parts = person.userData.parts;
+      if (parts) {
+        parts.armL.rotation.x = -0.5;
+        parts.armR.rotation.x = -0.5;
+      }
+      content.add(person);
+      content.userData.demo = person;
+    }
+  }
+
+  function placeBlobs() {
+    const mesh = ensureBlobs();
+    const content = contentOf(active);
+    if (mesh.parent !== content) content.add(mesh);
+    let i = 0;
+    const put = (x, y, z, s) => {
+      if (i >= mesh.instanceMatrix.count) return;
+      blobDummy.position.set(x, y, z);
+      blobDummy.scale.setScalar(s);
+      blobDummy.rotation.set(0, 0, 0);
+      blobDummy.updateMatrix();
+      mesh.setMatrixAt(i++, blobDummy.matrix);
+    };
+    for (const pawn of players.values()) if (pawn.visual.root.visible) put(pawn.pos.x, 0.34, pawn.pos.z, 1);
+    for (const n of npcs) put(n.root.position.x, 0.08, n.root.position.z, 0.85);
+    const demo = content.userData.demo;
+    if (demo) put(demo.position.x, 0.34, demo.position.z, 1);
+    mesh.count = i;
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
   function stepCamera(dt) {
+    if (shot) {
+      applyShot();
+      camPos.copy(_desired);
+      lookPos.copy(_look);
+      camera.position.copy(camPos);
+      camera.lookAt(lookPos);
+      return;
+    }
     const pawn = followPawn();
     if (flip) {
       _desired.set(PAGE.w / 2, 26, 32);
@@ -531,16 +668,18 @@ export function mountCity(canvas, board, opts = {}) {
     } else visual.placeholder.visible = true;
     root.add(visual.root);
     const home = { lx: shop.lx + (i ? 1.1 : -1.1), lz: shop.lz + 0.4 };
-    root.position.set(home.lx, 0, home.lz);
+    root.position.set(home.lx, 0.12, home.lz);
     const steps = job.steps.map((s, idx) => ({
       mode: s[0] === 'sit' ? 'sit' : s[0] === 'punch' ? 'punch' : s[0] === 'pickup' ? 'pickup' : s[0] === 'carry' ? 'carry' : s[0] === 'wait' ? 'idle' : 'walk',
       dur: s[1],
+      vfx: s[2] || null,
       to: {
         lx: shop.lx + Math.cos(idx + i) * 1.4,
         lz: shop.lz + Math.sin(idx * 1.3) * 1.1,
       },
     }));
-    return { root, visual, steps, i: 0, t: Math.random(), from: { ...home }, home, forever: steps.length === 1 && steps[0].mode === 'sit' };
+    const start = Math.max(0, steps.findIndex(s => s.vfx));
+    return { root, visual, steps, i: start, t: 0.3, from: { ...home }, home, forever: steps.length === 1 && steps[0].mode === 'sit' };
   }
 
   function figureFor(model) {
@@ -624,6 +763,7 @@ export function mountCity(canvas, board, opts = {}) {
       }
       updateVisual(n.visual, step.mode === 'walk' ? 'walk' : step.mode, now / 1000, n.forever ? 0 : dt, catalog);
       if (n.forever && n.visual.mixer) n.visual.mixer.timeScale = n.t > 1.2 ? 0 : 1;
+      if (step.vfx && PRESETS[tier].puffs) emitMote(content, step.vfx, n.root.position.x, 1.15, n.root.position.z);
     }
   }
 
@@ -662,6 +802,8 @@ export function mountCity(canvas, board, opts = {}) {
 
   function applyTier() {
     for (const z of [1, 2, 3, 4]) applyDecor(pages[z], PRESETS[tier].decor);
+    fill.intensity = tier === 'hoch' ? 0.38 : 0;
+    liveTier = tier;
     refreshNpcs();
     resize();
   }
@@ -700,6 +842,8 @@ export function mountCity(canvas, board, opts = {}) {
       stepPlayers(dt, now);
       noteSlides();
       stepNpcs(dt, now);
+      stepMotes(dt);
+      placeBlobs();
       stepPins();
       stepCamera(dt);
       hud();
@@ -770,9 +914,144 @@ export function mountCity(canvas, board, opts = {}) {
         calls: renderer.info.render.calls,
         triangles: renderer.info.render.triangles,
         zone: active,
+        slides: layout.slides.map(s => s.field + '→' + s.to).join(' '),
+        fp: layout.prisons.map(j => 'Z' + j.zone + ':' + j.fields.join('+')).join(' '),
+      };
+    },
+    frameShot(kind) {
+      shot = kind || 'uebersicht';
+      const zone = { uebersicht: 1, kueche: 1, festnahme: 2, park: 2, bahnhof: 4 }[shot] || 1;
+      if (!flip) showOnly(zone);
+      if (shot === 'festnahme') poseArrestStill();
+      stepCamera(1);
+      renderer.render(scene, camera);
+      return {
+        fps: Math.round(fps),
+        tier,
+        calls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        zone: active,
+        slides: layout.slides.map(s => s.field + '→' + s.to).join(' '),
+        fp: layout.prisons.map(j => 'Z' + j.zone + ':' + j.fields.join('+')).join(' '),
       };
     },
   };
+}
+
+const motes = [];
+let blobs = null;
+const blobDummy = new THREE.Object3D();
+let liveTier = 'mittel';
+
+function skyTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 512;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 512);
+  grd.addColorStop(0, '#d7ebf8');
+  grd.addColorStop(0.45, '#e7f3fb');
+  grd.addColorStop(1, '#f7f1e3');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = 'rgba(120, 168, 196, 0.28)';
+  g.lineWidth = 2;
+  for (let i = -40; i < 560; i += 11) {
+    g.beginPath();
+    g.moveTo(i, 0);
+    g.lineTo(i + 70, 230);
+    g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function moteTexture(kind) {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  if (kind === 'spark') {
+    grd.addColorStop(0, 'rgba(255,244,190,1)');
+    grd.addColorStop(0.45, 'rgba(255,140,40,0.95)');
+    grd.addColorStop(1, 'rgba(255,90,20,0)');
+  } else {
+    grd.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+  }
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+let sparkTex = null;
+let steamTex = null;
+
+function emitMote(parent, kind, x, y, z) {
+  const cap = (PRESETS[tierNameLive()] || PRESETS.mittel).puffs || 4;
+  if (!cap) return;
+  if (Math.random() > 0.45) return;
+  let m = motes.find(q => !q.alive);
+  if (!m && motes.length >= cap) return;
+  if (!sparkTex) sparkTex = moteTexture('spark');
+  if (!steamTex) steamTex = moteTexture('steam');
+  if (!m) {
+    const mat = new THREE.SpriteMaterial({ map: kind === 'spark' ? sparkTex : steamTex, transparent: true, depthWrite: false });
+    const s = new THREE.Sprite(mat);
+    m = { s, alive: false, kind };
+    motes.push(m);
+  }
+  m.kind = kind;
+  m.s.material.map = kind === 'spark' ? sparkTex : steamTex;
+  m.s.material.opacity = 1;
+  if (m.s.parent !== parent) parent.add(m.s);
+  m.alive = true;
+  m.life = kind === 'spark' ? 0.45 : 0.8;
+  m.max = m.life;
+  m.s.visible = true;
+  m.s.position.set(x + (Math.random() - 0.5) * 0.2, y, z + (Math.random() - 0.5) * 0.2);
+  m.vx = (Math.random() - 0.5) * (kind === 'spark' ? 0.8 : 0.15);
+  m.vy = kind === 'spark' ? 1.1 + Math.random() * 0.6 : 0.35 + Math.random() * 0.2;
+  m.vz = (Math.random() - 0.5) * 0.4;
+}
+
+function tierNameLive() {
+  return typeof liveTier === 'string' ? liveTier : 'mittel';
+}
+
+function stepMotes(dt) {
+  for (const m of motes) {
+    if (!m.alive) continue;
+    m.life -= dt;
+    if (m.life <= 0) {
+      m.alive = false;
+      m.s.visible = false;
+      continue;
+    }
+    m.s.position.x += m.vx * dt;
+    m.s.position.y += m.vy * dt;
+    m.s.position.z += m.vz * dt;
+    const k = Math.max(0, m.life / m.max);
+    const base = m.kind === 'spark' ? 0.22 : 0.42;
+    m.s.scale.setScalar(base * (0.5 + k));
+    m.s.material.opacity = k;
+  }
+}
+
+function ensureBlobs() {
+  if (!blobs) {
+    const geo = new THREE.CircleGeometry(0.46, 12);
+    geo.rotateX(-Math.PI / 2);
+    blobs = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#24331c', transparent: true, opacity: 0.3, depthWrite: false }), 24);
+    blobs.frustumCulled = false;
+    blobs.count = 0;
+    blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  }
+  return blobs;
 }
 
 function loadChars(loader) {

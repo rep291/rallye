@@ -447,6 +447,11 @@ export function makeTextPlane(text, opts = {}) {
   const g = c.getContext('2d');
   g.fillStyle = opts.bg || '#1d2433';
   g.fillRect(0, 0, w, h);
+  if (opts.marker) {
+    g.strokeStyle = '#2E2E33';
+    g.lineWidth = 22;
+    g.strokeRect(12, 12, w - 24, h - 24);
+  }
   if (opts.stripe) {
     g.fillStyle = opts.stripe;
     g.fillRect(0, 0, 18, h);

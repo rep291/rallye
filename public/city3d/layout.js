@@ -1,8 +1,8 @@
 // Vier Flipchart-Zonen. Die Positionen sind die 3D-Darstellung.
-// Typ und Rutsche für die Symbole kommen aus der 3D-Feldliste.
-// Der Server bleibt bei config/board.json (type/to auf den Punkten als serverType/serverTo).
+// Typ, Rutsche (to) und Finanzpolizei kommen von den Feldern aus config/board.json.
+// Neue Rutschen und Polizeifelder erscheinen, sobald sie dort stehen.
 
-export const TILE_Y = 0.22;
+export const TILE_Y = 0.36;
 export const PAGE = { w: 48, d: 34 };
 export const ZONE_GAP = 80;
 
@@ -23,10 +23,7 @@ const FIELD_COLOR = {
   ziel: '#FFD23F',
 };
 
-const SLIDE3D = { 15: 3, 21: 8, 25: 14, 28: 12, 43: 31, 49: 36, 56: 44, 70: 58, 74: 61, 80: 67, 97: 83, 99: 87 };
-const FP3D = new Set([33, 53, 62, 72, 78, 86, 94]);
-const AKTION = new Set([7, 9, 11, 20, 26, 30, 37, 41, 48, 50, 60, 64, 66, 75, 77, 84, 95]);
-const FRAGE = new Set([4, 13, 17, 22, 24, 35, 39, 45, 54, 68, 82, 88, 93, 100]);
+const KNOWN = new Set(['start', 'ziel', 'normal', 'aktion', 'frage', 'rutsche', 'finanzpolizei']);
 
 const SHOPS = [
   { id: 'schlosserei', name: 'Schlosserei', zone: 1, from: 6, to: 12, blurb: 'Amboss und Werkbank' },
@@ -48,13 +45,10 @@ export function zoneOf(id) {
   return 4;
 }
 
-export function visualType(id) {
+export function visualType(id, field) {
+  if (field && KNOWN.has(field.type)) return field.type;
   if (id === 0) return 'start';
   if (id === 101) return 'ziel';
-  if (SLIDE3D[id]) return 'rutsche';
-  if (FP3D.has(id)) return 'finanzpolizei';
-  if (AKTION.has(id)) return 'aktion';
-  if (FRAGE.has(id)) return 'frage';
   return 'normal';
 }
 
@@ -178,7 +172,8 @@ export function buildLayout(fields) {
       tx /= len;
       tz /= len;
       const server = byId.get(id);
-      const type3d = visualType(id);
+      const type3d = visualType(id, server);
+      const slideTo = type3d === 'rutsche' && server && Number.isInteger(server.to) ? server.to : null;
       points.push({
         id,
         index: points.length,
@@ -191,9 +186,9 @@ export function buildLayout(fields) {
         sx: -tz,
         sz: tx,
         type: server ? server.type : type3d,
-        serverTo: server && server.type === 'rutsche' ? server.to : null,
+        serverTo: slideTo,
         type3d,
-        slideTo: SLIDE3D[id] || null,
+        slideTo,
         building: null,
         color: fieldColor(id, type3d),
         label: id === 0 ? 'START' : id === 101 ? 'ZIEL' : String(id),
@@ -219,20 +214,24 @@ export function buildLayout(fields) {
     };
   });
 
-  const jails = [
-    { zone: 2, lx: 4.2, lz: 6.2, fields: [33] },
-    { zone: 3, lx: 43.5, lz: 26, fields: [53, 62, 72] },
-    { zone: 4, lx: 4.2, lz: 8.2, fields: [78, 86, 94] },
-  ].map(j => {
-    const ox = (j.zone - 1) * ZONE_GAP;
-    const place = slotsAt(j.lx, j.lz);
+  const JAIL_AT = { 1: [4.2, 6.2], 2: [4.2, 6.2], 3: [43.5, 26], 4: [4.2, 8.2] };
+  const fpByZone = new Map();
+  for (const p of points) {
+    if (p.type3d !== 'finanzpolizei') continue;
+    if (!fpByZone.has(p.zone)) fpByZone.set(p.zone, []);
+    fpByZone.get(p.zone).push(p.id);
+  }
+  const jails = [...fpByZone.entries()].map(([zone, fields]) => {
+    const at = JAIL_AT[zone] || [4.2, 6.2];
+    const ox = (zone - 1) * ZONE_GAP;
+    const place = slotsAt(at[0], at[1]);
     return {
-      zone: j.zone,
-      fields: j.fields,
-      lx: j.lx,
-      lz: j.lz,
-      x: j.lx + ox,
-      z: j.lz,
+      zone,
+      fields,
+      lx: at[0],
+      lz: at[1],
+      x: at[0] + ox,
+      z: at[1],
       slots: place.map(s => ({ ...s, x: s.lx + ox, z: s.lz })),
     };
   });
@@ -244,5 +243,7 @@ export function buildLayout(fields) {
     }
   }
 
-  return { points, buildings, prisons: jails, slides, visualSlides: SLIDE3D, page: PAGE };
+  const visualSlides = {};
+  for (const p of points) if (p.slideTo) visualSlides[p.id] = p.slideTo;
+  return { points, buildings, prisons: jails, slides, visualSlides, page: PAGE };
 }
