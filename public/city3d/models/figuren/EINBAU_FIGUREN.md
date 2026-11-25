@@ -1,5 +1,7 @@
 # EINBAU – Figuren & NPCs in Three.js (Stil C)
 
+**Stand v3 (25.11.2026, Europe/Vienna):** Alle Hand-Props haben jetzt einen **Grip-Pivot**: Ursprung = Griffpunkt, Geometrie schon im Raum ihres Sockets. Der Einbau ist damit nur noch `socket.add(prop)` ohne Offset (§6, **`attachProp` bitte ersetzen**; Signatur bleibt gleich). Neu: `Prop_Heugabel` mit den Clips `Pitchfork`/`PitchforkIdle` (§6b), `Prop_Laptop_zu` mit `CarryLaptopWalk`, die Clips `Saw`, `Paint`, `Water` und die Achsen-Tabelle `prop_grips.json`. Die Arbeits-Clips Hammer, Chop, Stir, Weld, Haircut, Pipette, Clipboard, KneelFix und CrouchIdle sind mit korrekter Handrotation neu gebacken. Alle Namen aus v1/v2 gelten weiter.
+
 **Stand v2 (25.11.2026, Europe/Vienna):** Handschellen an beiden Handgelenken (§3a), 12 neue Berufsfiguren (Mapping Beruf → Figur in `LISTE.md`), Props Balken/Reifen + 9 Berufs-Props, neue Clips `PrisonerCuff`, `CarryShoulder`, `CarryShoulderWalk`; Victory/Hammer/Wave ohne Durchdringung von Kopf und Hut. Alle Datei-, Clip-, Bone- und Prop-Namen aus v1 gelten weiter.
 
 Getestet mit **three r170** (GLTFLoader, SkeletonUtils, MeshToonMaterial). Mit genau diesem Code sind `figuren_kontakt.png` und `vorschau/*` gerendert: `/workspace/figuren_work/preview/toon.js` + `sheet.html`.
@@ -167,26 +169,28 @@ Alternativ ohne Extra-Dateien: den Default-Atlas in ein Canvas zeichnen, das Pix
 
 NPCs nutzen Zelle 0 nicht, also bleibt `figuren_atlas.png` für sie neutral.
 
-## 6. Props an Sockets
+## 6. Props an Sockets (v3: attach ohne Offset)
 
-Sockets (Bones): `Socket_Hand_R`, `Socket_Hand_L`, `Socket_Head`, `Socket_Back`. Kiste und Tablett hängen an `DEF-spine003`, die passende Zuordnung steht in `LISTE.md`. Die Props in `Handprops.glb` sind im Rest-Raum der Figur modelliert, ihr Ursprung ist der Griffpunkt. Deshalb das Skelett kurz in die Rest-Pose bringen, dann `attach`:
+Sockets (Bones): `Socket_Hand_R`, `Socket_Hand_L`, `Socket_Head`, `Socket_Back`. Kiste, Tablett, Balken und Reifen hängen an `DEF-spine003`. Die Zuordnung steht in `LISTE.md` und maschinenlesbar in `prop_grips.json` (`socket_three` ist der von three gesäuberte Name).
+
+Seit v3 hat jeder Prop-Knoten in `Handprops.glb` eine Identitäts-Transformation. Seine Geometrie liegt bereits im lokalen Raum des Sockets, der Ursprung ist der Griffpunkt (Mitte der Faust). Deshalb genügt `add`, ohne Rest-Pose und ohne Offset:
 
 ```js
 const props = (await loader.loadAsync(BASE + 'Handprops.glb')).scene;
-export function attachProp(figRoot, propName, socketName) {
+export function attachProp(figRoot, propName, socketName) {          // gleiche Signatur wie v1/v2
   const prop = props.getObjectByName(propName).clone(true);
-  let skel = null; figRoot.traverse(o => { if (o.isSkinnedMesh && !skel) skel = o.skeleton; });
-  const saved = skel.bones.map(b => [b.position.clone(), b.quaternion.clone(), b.scale.clone()]);
-  skel.pose(); figRoot.add(prop); figRoot.updateMatrixWorld(true);
-  figRoot.getObjectByName(socketName).attach(prop);
-  skel.bones.forEach((b, i) => { b.position.copy(saved[i][0]); b.quaternion.copy(saved[i][1]); b.scale.copy(saved[i][2]); });
+  figRoot.getObjectByName(socketName.replace(/\./g, '')).add(prop);  // 'DEF-spine.003' oder 'DEF-spine003'
   toonify(prop, { gradient: TOON_GRADIENT, outline: 0.008 });
   return prop;
 }
 attachProp(koch.root, 'Prop_Kochloeffel', 'Socket_Hand_R'); koch.play('Stir');
 ```
 
-Props mit `prop.visible` ein- und ausblenden. `Prop_Tastatur` und `Prop_Laptop` sind Tisch-Props und werden nicht an die Hand gehängt.
+**Wichtig:** Die alte `attachProp`-Variante aus v1/v2 (mit `skel.pose()` und `attach`) passt nicht mehr zu dieser `Handprops.glb`, denn die Props würden an den Füßen landen. Bitte die Funktion durch die obige ersetzen. Wer die alte Funktion behalten muss, findet in `prop_grips.json` pro Prop `legacy_restmatrix_socket_lokal`.
+
+Achsen im Lokalraum von `Socket_Hand_R`/`Socket_Hand_L`, für alle Hand-Props gleich: **+Z = Daumenseite** (Werkzeugkopf, Klinge, Tülle, Zinken), **−X (R) / +X (L) = Handfläche** (aufgelegte Props wie Klemmbrett und Messgerät), **+Y = Fingerrichtung**. Wer eigene Props baut, modelliert sie so mit dem Griff im Ursprung.
+
+Props mit `prop.visible` ein- und ausblenden. `Prop_Tastatur` und `Prop_Laptop` (aufgeklappt) sind Tisch-Props und werden nicht an die Hand gehängt. Der Ursprung ist der Standpunkt, also direkt auf die Tischplatte setzen.
 
 Neue Trage-Props (v2), beide an der Brust (`DEF-spine003`), so wie Kiste und Tablett:
 
@@ -198,6 +202,37 @@ attachProp(mechanikerin.root, 'Prop_Reifen', 'DEF-spine003'); mechanikerin.play(
 Der Balken gehört zu `CarryShoulder`/`CarryShoulderWalk`: Dort stützt die rechte Hand den Balken vorne, die linke schwingt normal. In `CarryWalk` wären beide Hände vor dem Bauch und der Balken läge frei auf der Schulter. Der Reifen passt zu `CarryIdle`/`CarryWalk`, beide Hände greifen die Flanken.
 
 Weitere Berufs-Props (v2): `Prop_Brot`, `Prop_Saege`, `Prop_Kelle`, `Prop_Giesskanne`, `Prop_Farbroller` (rechte Hand), `Prop_Messgeraet`, `Prop_Feuerloescher`, `Prop_Ball`, `Prop_Einkaufskorb` (linke Hand). Die Zuordnung steht in `LISTE.md`.
+
+### 6a. Arbeits-Clips mit Prop (v3)
+
+| Figur | Clip | Props |
+|---|---|---|
+| NPC_Tischler | `Hammer`, `Saw` | `Prop_Hammer` (R), `Prop_Saege` (R) |
+| NPC_Koch | `Stir`, `Chop` | `Prop_Kochloeffel` (R), `Prop_Messer` (R) |
+| NPC_Baecker | `Chop` | `Prop_Messer` (R) |
+| NPC_Schlosser | `Weld` | `Prop_Schweissbrenner` (R) |
+| NPC_Friseurin | `Haircut` | `Prop_Schere` (R) + `Prop_Kamm` (L) |
+| NPC_Laborantin | `Pipette` | `Prop_Pipette` (R) + `Prop_Reagenzglas` (L) |
+| NPC_Lagerist, NPC_Aerztin | `Clipboard` | `Prop_Klemmbrett` (L) + `Prop_Stift` (R) |
+| NPC_Elektriker | `Clipboard` oder `Interact` | `Prop_Messgeraet` (L) (+ `Prop_Stift` (R) bei Clipboard) |
+| NPC_Mechanikerin | `KneelFix` | `Prop_Schraubenschluessel` (R) |
+| NPC_Maurer | `CrouchIdle` | `Prop_Kelle` (R) |
+| NPC_Maler | `Paint` | `Prop_Farbroller` (R) |
+| NPC_Gaertnerin | `Water` | `Prop_Giesskanne` (R) |
+| NPC_IT | `CarryLaptopWalk` | `Prop_Laptop_zu` (L) |
+| NPC_Landwirt | `Pitchfork`, `PitchforkIdle` | `Prop_Heugabel` (R) |
+
+Props in anderen Clips (z. B. Hammer in `Idle`) sitzen ebenfalls korrekt in der Faust, zeigen dann aber in die Richtung, in die die UAL-Hand gerade zeigt.
+
+### 6b. Heugabel (Landwirt)
+
+```js
+const gabel = attachProp(landwirt.root, 'Prop_Heugabel', 'Socket_Hand_R');   // nur an die rechte Hand
+landwirt.play('Pitchfork');        // Arbeitsschleife: Heu aufnehmen, anheben, seitlich werfen (2,0 s)
+// Pause: landwirt.play('PitchforkIdle')  – Gabel senkrecht rechts, Stielende am Boden, Zinken oben
+```
+
+Die linke Hand greift im Clip 0,29 m weiter hinten am Stiel. Die Gabel hängt nur an `Socket_Hand_R`, ein zweites Attach ist nicht nötig. Zinken und Hände sind über alle Frames frei von Kopf und Hüten (Strohhut geprüft). Länge 1,03 m, 416 Dreiecke.
 
 ## 7. Baukasten (eigene Kombinationen)
 
@@ -237,6 +272,7 @@ Hinweise:
 
 - Die Chibi-Arme sind kurz. Victory (V-Pose), Hammer (Ausholen seitlich) und Wave (Schulterhöhe) sind in v2 so gestellt, dass Hände und Hammerkopf weder Kopf noch Hut berühren. Geprüft ist das per Skript über alle Frames, mit und ohne Hut, Vorher/Nachher-Bild in `vorschau/vergleich_victory_hammer.png`. Haircut berührt das Haar-Volumen nur am Rand.
 - `Prop_Handschellen` passt nur zu den Prisoner-Clips. In anderen Clips die Einzelteile mit gespannter Kette nehmen (§3a).
-- Kleine Props (Stift, Pipette) sind aus Spielkamera-Distanz kaum sichtbar, ihre Ausrichtung in der Hand ist nur angenähert.
+- Kleine Props (Stift, Pipette) sind aus Spielkamera-Distanz kaum sichtbar. Seit v3 sitzen sie per Grip-Pivot in der Faust und sind in ihren Arbeits-Clips ausgerichtet. Das Rig hat keine Finger-Bones, die Faust ist modelliert, Finger schließen sich also nicht um den Griff.
+- Die Griffe laufen quer durch die Faust. Damit das Handgelenk nicht unnatürlich abknickt, ist die Werkzeugachse in den Clips auf höchstens ca. 30° Abweichung vom Unterarm begrenzt. Messer, Säge und Hammer stehen dadurch etwas steiler als „ideal“.
 - `KneelFix`, `Sit`, `StandUp` sind One-Shots mit Translation in der Hüfte: Die Figur endet am selben Pivot.
 - Die GLBs enthalten keine Clips. Wer eine Figur einzeln in einem Viewer animiert sehen will, öffnet `BR_Animationen.glb`.

@@ -1,6 +1,8 @@
 # Figuren – BERUFE-RALLYE 3D (Stil C)
 
-Stand 25.11.2026, Nachbesserung v2 (Europe/Vienna). Alle Dateien glTF 2.0 Binary, **Y-up, Meter, Pivot an den Füßen** (Boden y = 0), Blickrichtung **+Z** (wie die bisherigen Quaternius-Figuren). Khronos-Validator: **0 Fehler**; Figuren je 1 Hinweis `NODE_SKINNED_MESH_NON_ROOT` (Standard bei Blender-Exporten, harmlos), `Handprops.glb` 0 Hinweise.
+Stand 25.11.2026, Nachbesserung v3 (Europe/Vienna). Alle Dateien glTF 2.0 Binary, **Y-up, Meter, Pivot an den Füßen** (Boden y = 0), Blickrichtung **+Z** (wie die bisherigen Quaternius-Figuren). Khronos-Validator: **0 Fehler**; Figuren je 1 Hinweis `NODE_SKINNED_MESH_NON_ROOT` (Standard bei Blender-Exporten, harmlos), `Handprops.glb` 0 Hinweise.
+
+**Neu in v3:** `Prop_Heugabel` + Clips `Pitchfork` (Heu werfen, beidhändig) und `PitchforkIdle` für den Landwirt; alle Hand-Props haben einen **Grip-Pivot** (Ursprung = Griffpunkt im Handballen, Geometrie im Socket-Lokalraum) – im Code nur noch `socket.add(prop)` ohne Offset, Achsen und Sockets in `prop_grips.json`; kleine Props neu ausgerichtet und die Arbeits-Clips mit passender Handrotation neu gebacken; neue Clips `Saw`, `Paint`, `Water`, `CarryLaptopWalk` und Prop `Prop_Laptop_zu`. Datei-, Clip- und Prop-Namen von v1/v2 unverändert.
 
 **Neu in v2:** Handschellen als zwei Schellen mit Kette an beiden Handgelenken (Clip `PrisonerCuff` neu, Prisoner-Clips mit zusammengeführten Handgelenken), 12 neue Berufsfiguren (jeder der 22 Berufe aus `assets/figuren/figuren.json` hat jetzt ein eigenes Kostüm), Props `Prop_Balken` + `Prop_Reifen` und 9 weitere Berufs-Props, Clips `CarryShoulder`/`CarryShoulderWalk` für den Balken, Victory/Hammer/Wave/Haircut/Pipette ohne Durchdringung von Kopf und Hut. Dateinamen von v1 unverändert.
 
@@ -8,7 +10,7 @@ Gemeinsam für alle Figuren:
 - **Ein Rig** (`Rig`, 23 deformierende Bones + 4 Sockets, Bone-Namen wie Quaternius Universal Animation Library), Chibi-Proportionen, Höhe ca. 1,15 m (mit Hut bis 1,31 m).
 - **1 Mesh, 1 Skin, 1 Material** (`M_Figur` bzw. `M_Figur_Spieler`) mit eingebettetem 64×64-Palettenatlas `texturen/figuren_atlas.png` (8×8 Zellen, Nearest-Filter). v2 nutzt 4 zusätzliche, bisher freie Zellen (50–53); alle alten UVs bleiben gleich.
 - `COLOR_0.r` = Outline-Stärke pro Vertex (1 = Körper, 0 = Augen/Mund/Brauen/Flecken, 0,3 = Knöpfe, Streifen, Kleinteile).
-- **Clips liegen zentral in `BR_Animationen.glb`** (39 Clips, gleiches Rig) und werden per Bone-Namen auf jede Figur gebunden.
+- **Clips liegen zentral in `BR_Animationen.glb`** (45 Clips, gleiches Rig) und werden per Bone-Namen auf jede Figur gebunden.
 - `_LOD1` = gleiche Figur mit 60 % Segmenten. Gleicher Atlas, gleiches Rig, gleiche Clips.
 
 ## Berufe → Figur (Mapping, 2D-Berufe aus `assets/figuren/figuren.json`)
@@ -71,23 +73,23 @@ Eigene Kombinationen aus dem Baukasten (z. B. weitere Passanten oder eine zweite
 | `NPC_Reisender_Rucksack.glb` / `NPC_Reisender_Rucksack_LOD1.glb` | Reisender (Bahnhof) | 4.482 / 2.409 | Walk, Idle, Wave, SitIdle | eigen + Rig/Clips Quaternius UAL (CC0) |
 | `NPC_Reisende_Business.glb` / `NPC_Reisende_Business_LOD1.glb` | Reisende (Bahnhof) | 4.794 / 2.469 | WalkFormal (+Koffer), Idle, SitIdle, Talk | eigen + Rig/Clips Quaternius UAL (CC0) |
 | `NPC_Baecker.glb` / `NPC_Baecker_LOD1.glb` **neu** | Bäcker (Backstube) | 4.918 / 2.797 | Chop (+Messer), PickUp/CarryWalk (+Tablett), Idle mit Brot (+Brot), Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_IT.glb` / `NPC_IT_LOD1.glb` **neu** | IT-Technikerin/-Techniker (Büro. Serverraum) | 5.216 / 2.933 | Sit→Type (+Tastatur/Laptop am Tisch)→StandUp, Interact, Talk, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_Elektriker.glb` / `NPC_Elektriker_LOD1.glb` **neu** | Elektriker (Baustelle. Haus) | 5.120 / 2.812 | Interact (+Messgeraet), KneelFix (+Schraubenschluessel), CrouchIdle, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_Tischler.glb` / `NPC_Tischler_LOD1.glb` **neu** | Tischler/Zimmerer (Werkstatt) | 4.742 / 2.665 | Hammer (+Hammer), Chop (+Saege), CarryShoulderWalk (+Balken), Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_IT.glb` / `NPC_IT_LOD1.glb` **neu** | IT-Technikerin/-Techniker (Büro. Serverraum) | 5.216 / 2.933 | Sit→Type (+Tastatur/Laptop am Tisch)→StandUp, CarryLaptopWalk (+Laptop_zu), Interact, Talk, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_Elektriker.glb` / `NPC_Elektriker_LOD1.glb` **neu** | Elektriker (Baustelle. Haus) | 5.120 / 2.812 | Clipboard (+Messgeraet links, Stift rechts), Interact (+Messgeraet), KneelFix (+Schraubenschluessel), CrouchIdle, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_Tischler.glb` / `NPC_Tischler_LOD1.glb` **neu** | Tischler/Zimmerer (Werkstatt) | 4.742 / 2.665 | Hammer (+Hammer), Saw (+Saege), CarryShoulderWalk (+Balken), Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
 | `NPC_Feuerwehr.glb` / `NPC_Feuerwehr_LOD1.glb` **neu** | Feuerwehr (Feuerwache. Einsatz) | 5.270 / 3.167 | Walk/Run, Idle (+Feuerloescher), Push, Drive, Talk | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_Maurer.glb` / `NPC_Maurer_LOD1.glb` **neu** | Maurer (Baustelle) | 4.956 / 2.796 | CrouchIdle/Chop (+Kelle), CarryShoulderWalk (+Balken), PickUp, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_Maurer.glb` / `NPC_Maurer_LOD1.glb` **neu** | Maurer (Baustelle) | 4.956 / 2.796 | CrouchIdle (+Kelle), CarryShoulderWalk (+Balken), PickUp, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
 | `NPC_Fahrer.glb` / `NPC_Fahrer_LOD1.glb` **neu** | Berufskraftfahrer (Lkw. Bus. Lieferung) | 4.476 / 2.444 | Drive, Walk, Idle, Talk, CarryWalk (+Kiste, Lieferung) | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_Gaertnerin.glb` / `NPC_Gaertnerin_LOD1.glb` **neu** | Gärtnerin (Park. Gärtnerei) | 4.886 / 2.689 | Walk (+Giesskanne), CrouchIdle, PickUp, Wave | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_Gaertnerin.glb` / `NPC_Gaertnerin_LOD1.glb` **neu** | Gärtnerin (Park. Gärtnerei) | 4.886 / 2.689 | Water (+Giesskanne), CrouchIdle, PickUp, Wave | eigen + Rig/Clips Quaternius UAL (CC0) |
 | `NPC_Erzieherin.glb` / `NPC_Erzieherin_LOD1.glb` **neu** | Kindergartenpädagogin (Kindergarten) | 5.196 / 2.652 | Talk (+Ball), Wave, SitIdle/SitTalk, Dance, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_Landwirt.glb` / `NPC_Landwirt_LOD1.glb` **neu** | Landwirt (Bauernhof) | 5.016 / 2.903 | Push, CarryWalk (+Kiste), PickUp, Walk, Talk | eigen + Rig/Clips Quaternius UAL (CC0) |
-| `NPC_Maler.glb` / `NPC_Maler_LOD1.glb` **neu** | Maler (Baustelle. Wohnung) | 4.756 / 2.724 | Stir/Interact (+Farbroller), Walk, Idle | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_Landwirt.glb` / `NPC_Landwirt_LOD1.glb` **neu** | Landwirt (Bauernhof) | 5.016 / 2.903 | Pitchfork / PitchforkIdle (+Heugabel), Push, CarryWalk (+Kiste), PickUp, Walk, Talk | eigen + Rig/Clips Quaternius UAL (CC0) |
+| `NPC_Maler.glb` / `NPC_Maler_LOD1.glb` **neu** | Maler (Baustelle. Wohnung) | 4.756 / 2.724 | Paint (+Farbroller), Walk, Idle | eigen + Rig/Clips Quaternius UAL (CC0) |
 | `NPC_Verkaeuferin.glb` / `NPC_Verkaeuferin_LOD1.glb` **neu** | Verkäuferin (Geschäft. Supermarkt) | 4.842 / 2.449 | PickUp, Idle (+Einkaufskorb), Interact (Kasse), Talk, Walk | eigen + Rig/Clips Quaternius UAL (CC0) |
 
 Spielfiguren (`Spieler_A`–`F`, Material `M_Figur_Spieler`): Das Oberteil liegt auf Atlas-Zelle 0. Für die Spielerfarbe die Textur gegen `texturen/figuren_atlas_spieler_<pink|orange|gelb|gruen|blau|lila>.png` tauschen (siehe EINBAU_FIGUREN.md). Default im GLB ist Pink.
 
 Budget: alle Figuren 3,8–5,3k Dreiecke (LOD0), 1,9–3,2k (LOD1). Leicht über 5k liegen nur die neuen Figuren mit viel Ausrüstung (Feuerwehr 5.270, IT 5.216, Erzieherin 5.196, Elektriker 5.120) sowie Landwirt/Polizistin/Ärztin/Laborantin (≈5,0k); für Mengen-NPCs LOD1 verwenden.
 
-## Handprops (`Handprops.glb`, 31 Props, 5.284 Dreiecke gesamt)
+## Handprops (`Handprops.glb`, 33 Props, 6.266 Dreiecke gesamt)
 
 | Prop | Socket (three-Name) | Dreiecke | Zweck / Clip |
 |---|---|---|---|
@@ -95,13 +97,13 @@ Budget: alle Figuren 3,8–5,3k Dreiecke (LOD0), 1,9–3,2k (LOD1). Leicht über
 | `Prop_Kochloeffel` | Socket_Hand_R | 84 | Stir |
 | `Prop_Messer` | Socket_Hand_R | 120 | Chop |
 | `Prop_Schere` | Socket_Hand_R | 152 | Haircut |
-| `Prop_Kamm` | Socket_Hand_L | 96 | Haircut |
+| `Prop_Kamm` | Socket_Hand_L | 108 | Haircut |
 | `Prop_Klemmbrett` | Socket_Hand_L | 36 | Clipboard |
-| `Prop_Stift` | Socket_Hand_R | 20 | Clipboard |
-| `Prop_Pipette` | Socket_Hand_R | 48 | Pipette |
-| `Prop_Reagenzglas` | Socket_Hand_L | 56 | Pipette |
-| `Prop_Schweissbrenner` | Socket_Hand_R | 84 | Weld |
-| `Prop_Schraubenschluessel` | Socket_Hand_R | 136 | KneelFix |
+| `Prop_Stift` | Socket_Hand_R | 30 | Clipboard |
+| `Prop_Pipette` | Socket_Hand_R | 68 | Pipette |
+| `Prop_Reagenzglas` | Socket_Hand_L | 104 | Pipette |
+| `Prop_Schweissbrenner` | Socket_Hand_R | 220 | Weld |
+| `Prop_Schraubenschluessel` | Socket_Hand_R | 148 | KneelFix |
 | `Prop_Kiste` | DEF-spine003 (Brust) | 120 | CarryIdle/CarryWalk |
 | `Prop_Tablett` | DEF-spine003 (Brust) | 164 | CarryWalk |
 | `Prop_Handschellen` **geändert** | Socket_Hand_R | 440 | **Komplett-Set** (2 Schellen + Kette) an der rechten Hand des Gefangenen; passt starr in PrisonerCuff (ab 50 %), PrisonerIdle, PrisonerWalk, PrisonerSit |
@@ -113,15 +115,27 @@ Budget: alle Figuren 3,8–5,3k Dreiecke (LOD0), 1,9–3,2k (LOD1). Leicht über
 | `Prop_Balken` **neu** | DEF-spine003 (Brust) | 132 | Kantholz auf der rechten Schulter, CarryShoulder/CarryShoulderWalk (Bauarbeiter, Maurer, Tischler) |
 | `Prop_Reifen` **neu** | DEF-spine003 (Brust) | 440 | Autoreifen mit Felge, mit beiden Händen vor dem Bauch, CarryIdle/CarryWalk (Mechanikerin) |
 | `Prop_Brot` **neu** | Socket_Hand_R | 136 | Baguette (Bäcker) |
-| `Prop_Laptop` **neu** | keiner (Tisch) | 228 | Tisch-Prop (IT) |
-| `Prop_Messgeraet` **neu** | Socket_Hand_L | 216 | Multimeter mit Messkabeln (Elektriker) |
-| `Prop_Saege` **neu** | Socket_Hand_R | 112 | Handsäge, Chop (Tischler) |
+| `Prop_Laptop` **neu** | keiner (Tisch) | 228 | Tisch-Prop (IT), aufgeklappt |
+| `Prop_Messgeraet` **neu** | Socket_Hand_L | 216 | Multimeter auf der linken Handfläche, Clipboard / Interact (Elektriker) |
+| `Prop_Saege` **neu** | Socket_Hand_R | 120 | Handsäge, Saw (Tischler) |
 | `Prop_Feuerloescher` **neu** | Socket_Hand_L | 212 | Feuerlöscher, hängt am Arm (Feuerwehr) |
-| `Prop_Kelle` **neu** | Socket_Hand_R | 88 | Maurerkelle, CrouchIdle/Chop (Maurer) |
-| `Prop_Giesskanne` **neu** | Socket_Hand_R | 216 | Gießkanne (Gärtnerin) |
+| `Prop_Kelle` **neu** | Socket_Hand_R | 96 | Maurerkelle, CrouchIdle (Maurer) |
+| `Prop_Giesskanne` **neu** | Socket_Hand_R | 360 | Gießkanne, Water (Gärtnerin) |
 | `Prop_Ball` **neu** | Socket_Hand_L | 264 | Ball (Kindergarten) |
-| `Prop_Farbroller` **neu** | Socket_Hand_R | 164 | Farbroller (Maler) |
+| `Prop_Farbroller` **neu** | Socket_Hand_R | 164 | Farbroller, Paint (Maler) |
 | `Prop_Einkaufskorb` **neu** | Socket_Hand_L | 184 | Einkaufskorb, hängt am Arm (Verkauf) |
+| `Prop_Heugabel` **neu v3** | Socket_Hand_R | 416 | Heugabel, beidhändig: Pitchfork / PitchforkIdle (Landwirt); die linke Hand greift 0,29 m weiter hinten am Stiel |
+| `Prop_Laptop_zu` **neu v3** | Socket_Hand_L | 168 | zugeklappter Laptop zum Tragen, CarryLaptopWalk (IT) |
+
+**Grip-Pivots (v3):** Jeder Prop-Knoten in `Handprops.glb` hat eine Identitäts-Transformation; die Geometrie liegt bereits im lokalen Raum seines Sockets, der Ursprung ist der Griffpunkt (Mitte der Faust). Einbau: `fig.getObjectByName(socket).add(prop.clone())`, kein Offset, keine Rest-Pose (EINBAU_FIGUREN.md §6). Achsen im Lokalraum von `Socket_Hand_R`/`Socket_Hand_L` (für alle Hand-Props gleich):
+
+| Achse | Bedeutung | `Socket_Hand_R` | `Socket_Hand_L` |
+|---|---|---|---|
+| D | Daumenseite (Werkzeug-Kopf, Klinge, Tülle, Zinken zeigen hierhin) | +Z | +Z |
+| P | Handflächen-Normale (aufgelegte Props wie Klemmbrett, Messgerät liegen hier) | −X | +X |
+| F | Fingerrichtung (Hammerkopf-Schlagfläche, Schneide, Sägezähne, Düsenknick) | +Y | +Y |
+
+Stiele und Griffe laufen entlang D durch die Faust; was über die Kleinfingerseite (−D) hinausragt, ist z. B. der Kochlöffel, die Pipettenspitze oder das Stielende der Heugabel. Die Werte stehen pro Prop auch in `prop_grips.json` (dort zusätzlich `legacy_restmatrix_socket_lokal` für alten Code).
 
 `Prop_Handschellen` hat den alten Namen behalten, ist aber kein Einzelteil in der Polizistenhand mehr: es ist das Set für die Handgelenke des Gefangenen (Socket_Hand_R des Gefangenen, die linke Schelle sitzt dadurch exakt am linken Handgelenk).
 
@@ -131,13 +145,15 @@ Budget: alle Figuren 3,8–5,3k Dreiecke (LOD0), 1,9–3,2k (LOD1). Leicht über
 |---|---|---|---|
 | `BR_Animationen.glb` | Rig + alle Clips (+ Spieler_A-Mesh, damit die Datei in jedem Viewer sichtbar ist) | 1,1 MB, 24 fps, linear gesampelt | Clips teils Quaternius UAL (CC0), teils eigen gekeyt |
 | `Figur_Baukasten.glb` | 98 einzelne Skinned Meshes auf **einem** Rig: 16 Köpfe, 23 Frisuren, 18 Hüte/Mützen/Helme, 3 Brillen, 3 Zubehör (Headset, Bleistift, Mehl), 35 Körper/Outfits | 6,0 MB | eigen |
-| `Handprops.glb` | 31 Props (Tabelle oben) | 5284 Dreiecke gesamt | eigen |
+| `Handprops.glb` | 33 Props (Tabelle oben) | 6266 Dreiecke gesamt | eigen |
 | `texturen/figuren_atlas*.png` | Paletten-Atlas + 6 Spielerfarben-Varianten | je 64×64 px | eigen |
 | `figuren_kontakt.png` | Kontaktblatt aller 36 Figuren (Three.js-Render, Toon + Outline), mit Dreieckszahlen | 1800×2782 | – |
+| `prop_grips.json` **neu v3** | Socket, Achsen, Dreiecke und Anker je Prop; Legacy-Matrix für alten Attach-Code | 33 Props | eigen |
+| `vorschau/vergleich_props_griff.png` **neu v3** | **Vorher/Nachher** der Griff-Ausrichtung: Hammer, Chop, Stir, Weld, Haircut, Pipette, Clipboard, KneelFix, CrouchIdle, Interact (je 4 Phasen, Nahaufnahme) | 1692×2800 | – |
 | `vorschau/vergleich_victory_hammer.png` | **Vorher/Nachher** Victory + Hammer, je ohne Hut, Sonnenhut, Helm, Kochmütze, Polizeimütze, Kappe | – | – |
 | `vorschau/clip_<Name>.png` | Bilderstreifen je Clip (6 Phasen, passende Figur + Props; Prisoner-Clips von hinten) | – | – |
 | `vorschau/clips_uebersicht.png` | alle Streifen auf einem Blatt | – | – |
-| `vorschau/clips_animiert.gif` | Victory, Hammer, Wave, CarryShoulderWalk (Balken), CarryWalk (Reifen), Haircut, PrisonerWalk + PrisonerIdle (Handschellen, von hinten) | 1760×320, 16 Frames | – |
+| `vorschau/clips_animiert.gif` | Victory, Hammer, Pitchfork (Heugabel), CarryShoulderWalk (Balken), Paint (Farbroller), Haircut, PrisonerWalk + PrisonerIdle (Handschellen, von hinten) | 1760×320, 16 Frames | – |
 
 ## Clips (alle in `BR_Animationen.glb`)
 
@@ -159,22 +175,28 @@ Budget: alle Figuren 3,8–5,3k Dreiecke (LOD0), 1,9–3,2k (LOD1). Leicht über
 | PickUp | 0,83 s | nein | UAL PickUp_Table | Greifen, Abstellen, Probe nehmen |
 | Interact | 2,0 s | nein | UAL Interact | Knopf/Drucker/Gerät bedienen |
 | Push | 2,67 s | ja | UAL Push_Loop | Hubwagen, Rollwagen schieben |
-| CrouchIdle | 2,92 s | ja | UAL Crouch_Idle_Loop | Hocken (Baustelle, Beet) |
-| KneelFix | 5,17 s | nein | UAL Fixing_Kneeling | Mechanik am Rad/Boden (knien, schrauben, aufstehen) |
+| CrouchIdle | 2,9 s | ja | Quaternius UAL, v3: Handrotation rechts | Hocken; Kelle flach nach vorn |
+| Saw | 1,0 s | ja | eigen (neu v3) | Sägen vor dem Körper (Prop_Saege) |
+| Paint | 1,67 s | ja | eigen (neu v3) | Wand streichen mit Farbroller, auf und ab |
+| Water | 2,0 s | ja | eigen (neu v3) | Gießen mit Gießkanne, Tülle kippt nach vorn |
+| Pitchfork | 2,0 s | ja | eigen (neu v3) | Heu werfen, beidhändig (Prop_Heugabel): aufnehmen unten vorn, anheben, seitlich werfen |
+| PitchforkIdle | 2,5 s | ja | eigen (neu v3) | Stehen, Heugabel senkrecht rechts neben dem Körper, Stielende am Boden |
+| KneelFix | 5,2 s | nein | Quaternius UAL, v3: Handrotation rechts | Knien und schrauben; Schraubenschlüssel zeigt nach vorn unten |
 | Drive | 1,67 s | ja | UAL Driving_Loop | Polizist am Steuer |
-| Hammer | 1,0 s | ja | eigen (v2: neu ausgeholt) | Hämmern: Ausholen seitlich neben dem Kopf (Hammerkopf zeigt nach hinten-oben), Schlag vorne unten |
-| Weld | 1,0 s | ja | eigen | Schweißen, vorgebeugt, leichtes Zittern |
-| Stir | 1,33 s | ja | eigen | Topf rühren |
-| Chop | 0,67 s | ja | eigen | Schneiden am Brett |
+| Hammer | 1,0 s | ja | eigen (v3: Griff/Rotation) | Hämmern: Ausholen seitlich neben dem Kopf, Schlag vorne unten; Hammerkopf schlägt mit der Fingerseite |
+| Weld | 1,0 s | ja | eigen (v3: Griff/Rotation) | Schweißen, Düse zeigt aufs Werkstück |
+| Stir | 1,33 s | ja | eigen (v3: Griff/Rotation) | Rühren, Löffel zeigt nach unten in den Topf |
+| Chop | 0,67 s | ja | eigen (v3: Griff/Rotation) | Schneiden, Klinge nach vorn, Schneide unten |
 | CarryIdle | 2,5 s | ja | eigen | Kiste/Tablett vor der Brust halten |
 | CarryWalk | 1,33 s | ja | eigen | Tragen beim Gehen (statt Walk while carrying) |
 | CarryShoulder | 2,5 s | ja | eigen (neu v2) | Balken auf der rechten Schulter, rechte Hand stützt vorne |
 | CarryShoulderWalk | 1,33 s | ja | eigen (neu v2) | Gehen mit Balken auf der Schulter (Prop_Balken) |
 | Type | 1,67 s | ja | eigen (auf SitIdle) | Tippen am Schreibtisch |
-| Haircut | 2,0 s | ja | eigen (v2: Hände weiter vorn) | Schere + Kamm am Kopf des Kunden |
+| CarryLaptopWalk | 1,33 s | ja | eigen (neu v3) | Gehen mit zugeklapptem Laptop in der linken Hand (Prop_Laptop_zu) |
+| Haircut | 2,0 s | ja | eigen (v3: Griff/Rotation) | Schere + Kamm am Kopf des Kunden, Klingen/Zinken nach vorn |
 | Examine | 2,0 s | ja | eigen | Untersuchen (vorgebeugt, Hand vorn, andere Hand an der Hüfte) |
-| Pipette | 1,33 s | ja | eigen (v2: Hände weiter vorn) | Pipettieren über Reagenzglas |
-| Clipboard | 2,0 s | ja | eigen | Klemmbrett schreiben/prüfen |
+| Pipette | 1,33 s | ja | eigen (v3: Griff/Rotation) | Reagenzglas senkrecht (links), Pipette senkrecht darüber (rechts) |
+| Clipboard | 2,0 s | ja | eigen (v3: Griff/Rotation) | Brett (oder Messgerät) auf der linken Handfläche, zum Gesicht geneigt; Stift rechts senkrecht aufs Brett |
 | LieIdle | 2,5 s | ja | eigen | Liegen auf dem Rücken (Patient), Kopf Richtung −Z, Rücken 0,14 m über Pivot |
 | Cuff | 1,0 s | nein | eigen | Polizist legt Handschellen an (Hände nach vorn an die Handgelenke des Gefangenen, Klick). Gegenstück: PrisonerCuff |
 | PrisonerCuff | 1,0 s | nein | eigen (neu v2) | Gefangener: Hände gehen nach hinten zusammen, Klick bei 50 %; gleich lang wie Cuff, Handschellen ab 50 % einblenden |
@@ -184,6 +206,8 @@ Budget: alle Figuren 3,8–5,3k Dreiecke (LOD0), 1,9–3,2k (LOD1). Leicht über
 | PrisonerSit | 1,67 s | ja | eigen (v2: Handgelenke zusammen) | In der Zelle sitzen, Hände hinten, Kopf gesenkt |
 
 Zuordnung zum Styleguide (§13/§15): `Punch` → `Hammer`/`Chop`/`Haircut`, `Walk while carrying` → `CarryWalk` (Kiste, Tablett, Reifen) bzw. `CarryShoulderWalk` (Balken), `SitDown` → `Sit` + `SitIdle`, Handschellen anlegen → `Cuff` (Polizist) + `PrisonerCuff` (Gefangener), Hände hinten Idle/Walk → `PrisonerIdle`/`PrisonerWalk`, Abführen → `Lead` (Polizist) + `PrisonerWalk` (Figur ca. 0,35 m vor ihm). Nicht enthalten (bewusst): Death, Hit, Waffen-Clips.
+
+Kollisionsprüfung v3 (Hände und Prop-Spitzen – Hammerkopf, Heugabel-Zinken und Stielende, Farbrolle, Sägespitze, Löffel, Düse, Schere, Kamm, Klemmbrett, Gießkanne – gegen Kopf+Haar und alle Hutvolumen, über alle Frames): alle Arbeits-Clips inkl. Pitchfork/PitchforkIdle frei. Zusätzlich geprüft: Handgelenk-Abknickung Unterarm↔Hand in den Arbeits-Clips ≤ ca. 40° (Clipboard links ca. 70° Beugung, weil das Brett flach auf der Handfläche liegt; Pitchfork rechts ca. 60°), linke Hand bei Pitchfork max. 3 cm neben dem Stiel. Nur `Push` und `LieIdle` (unverändert seit v1, Hände am/unter dem Kopf beim Liegen bzw. UAL-Schieben) streifen das Kopfvolumen.
 
 Kollisionsprüfung v2 (Hände/Hammerkopf gegen Kopf+Haar sowie Hutvolumen Sonnenhut, Helm, Kochmütze, Polizeimütze, Feuerwehrhelm, über alle Frames): Victory, Hammer, Wave, Stir, Chop, Weld, Cuff, Lead, Type, Clipboard, Examine, Pipette, Prisoner*, CarryShoulder* frei; Haircut berührt das Haar-Volumen nur am Rand (< 1 cm). Skript: `/workspace/figuren_work/src/check.py`.
 
@@ -278,11 +302,12 @@ Welche Teile eine fertige Figur nutzt:
 
 ## Quelle und Neubau
 
-Generator (nicht im Repo): `/workspace/figuren_work/src/` – `rig.py` (Chibi-Rig aus UAL), `kit.py` (Baukasten-Primitive, Palette), `figures.py` (36 Figuren), `anim.py` (Clips backen), `check.py` (Kollisionsprüfung), `export_anim.py`, `build_figs.py` (`-- --lod` für LOD1), `build_kit.py`, `props.py`. Vorschau-Tools: `/workspace/figuren_work/preview/` (Three.js-Renderer mit Puppeteer), `cmp.py`, `gif.py`, `post.mjs` (COLOR_0-Fix), `validate.mjs`, `liste.py` (diese Liste). Stand v1 gesichert unter `/workspace/figuren_work/v1/` und `src_v1/`.
+Generator (nicht im Repo): `/workspace/figuren_work/src/` – `rig.py` (Chibi-Rig aus UAL), `kit.py` (Baukasten-Primitive, Palette), `figures.py` (36 Figuren), `anim.py` (Clips backen), `check.py` (Kollisionsprüfung), `export_anim.py`, `build_figs.py` (`-- --lod` für LOD1), `build_kit.py`, `props.py`. Vorschau-Tools: `/workspace/figuren_work/preview/` (Three.js-Renderer mit Puppeteer), `cmp.py`, `gif.py`, `post.mjs` (COLOR_0-Fix), `validate.mjs`, `liste.py` (diese Liste). Stand v1 gesichert unter `/workspace/figuren_work/v1/` und `src_v1/`, Stand v2 unter `v2/` und `src_v2/`. Grip-Pivots: `node grips.mjs Handprops.glb NPC_Landwirt.glb props.json prop_grips.json` direkt nach `props.py` (nur einmal pro Export, das Skript bricht bei schon gebackener Datei ab).
 
 ```bash
 cd /workspace/figuren_work && ./rebuild.sh            # Clips + alle Figuren
 blender -b --python src/build_figs.py -- --lod        # LOD1
 blender -b --python src/build_kit.py; blender -b --python src/props.py
 node post.mjs /workspace/brettspiel_app/_art/3d_modelle/figuren/*.glb
+F=/workspace/brettspiel_app/_art/3d_modelle/figuren; node grips.mjs $F/Handprops.glb $F/NPC_Landwirt.glb props.json $F/prop_grips.json
 ```
