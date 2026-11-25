@@ -214,8 +214,9 @@
       "id": 21,
       "x": 346.2,
       "y": 334.4,
-      "type": "normal",
-      "label": "21"
+      "type": "rutsche",
+      "label": "21",
+      "to": 8
     },
     {
       "id": 22,
@@ -242,8 +243,9 @@
       "id": 25,
       "x": 241.2,
       "y": 274.1,
-      "type": "normal",
-      "label": "25"
+      "type": "rutsche",
+      "label": "25",
+      "to": 14
     },
     {
       "id": 26,
@@ -369,8 +371,9 @@
       "id": 43,
       "x": 336.1,
       "y": 207.1,
-      "type": "normal",
-      "label": "43"
+      "type": "rutsche",
+      "label": "43",
+      "to": 31
     },
     {
       "id": 44,
@@ -411,8 +414,9 @@
       "id": 49,
       "x": 459.5,
       "y": 65,
-      "type": "normal",
-      "label": "49"
+      "type": "rutsche",
+      "label": "49",
+      "to": 36
     },
     {
       "id": 50,
@@ -439,7 +443,7 @@
       "id": 53,
       "x": 526.9,
       "y": 155.7,
-      "type": "normal",
+      "type": "finanzpolizei",
       "label": "53"
     },
     {
@@ -574,7 +578,7 @@
       "id": 72,
       "x": 571.9,
       "y": 275.8,
-      "type": "normal",
+      "type": "finanzpolizei",
       "label": "72"
     },
     {
@@ -588,8 +592,9 @@
       "id": 74,
       "x": 634.3,
       "y": 281.7,
-      "type": "normal",
-      "label": "74"
+      "type": "rutsche",
+      "label": "74",
+      "to": 61
     },
     {
       "id": 75,
@@ -616,7 +621,7 @@
       "id": 78,
       "x": 633.7,
       "y": 399.1,
-      "type": "normal",
+      "type": "finanzpolizei",
       "label": "78"
     },
     {
@@ -729,7 +734,7 @@
       "id": 94,
       "x": 784.8,
       "y": 270.6,
-      "type": "normal",
+      "type": "finanzpolizei",
       "label": "94"
     },
     {
@@ -750,8 +755,9 @@
       "id": 97,
       "x": 834.6,
       "y": 343.1,
-      "type": "normal",
-      "label": "97"
+      "type": "rutsche",
+      "label": "97",
+      "to": 83
     },
     {
       "id": 98,

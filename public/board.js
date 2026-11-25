@@ -61,7 +61,7 @@ window.BoardView = function (svg, board) {
   function offset(k) { if (k < OFF.length) return OFF[k]; const a = k * 2.4, r = 8 + k * 0.9; return [Math.cos(a) * r, Math.sin(a) * r * 0.6]; }
   const tgt = p => pawns[p.id] ? pawns[p.id].target : p.pos, inJ = p => !!(pawns[p.id] ? pawns[p.id].jt : p.jail) && !!JAIL[tgt(p)];
   function restXY(pos, players, id) {
-    const me = players.find(p => p.id === id), j = me ? inJ(me) : false;
+    const me = players.find(p => p.id === id), j = me ? inJ(me) && !!JAIL[pos] : false; // nur Gefaengnis, wenn pos selbst ein FP-Feld ist (alte Settle-Schritte)
     const here = players.filter(p => tgt(p) === pos && inJ(p) === j);
     const k = Math.max(0, here.findIndex(p => p.id === id));
     if (j) { const J = JAIL[pos], o = here.length < 2 ? 0 : (k - (here.length - 1) / 2) * 7; return [J.x + o, J.y - 1 + (k % 2) * 2]; }
