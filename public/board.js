@@ -61,12 +61,14 @@ window.BoardView = function (svg, board) {
   function offset(k) { if (k < OFF.length) return OFF[k]; const a = k * 2.4, r = 8 + k * 0.9; return [Math.cos(a) * r, Math.sin(a) * r * 0.6]; }
   const tgt = p => pawns[p.id] ? pawns[p.id].target : p.pos, inJ = p => !!(pawns[p.id] ? pawns[p.id].jt : p.jail) && !!JAIL[tgt(p)];
   function restXY(pos, players, id) {
-    const me = players.find(p => p.id === id), j = me ? inJ(me) && !!JAIL[pos] : false; // nur Gefaengnis, wenn pos selbst ein FP-Feld ist (alte Settle-Schritte)
+    const f = F[pos];
+    if (!f) return [0, 0];
+    const me = players.find(p => p.id === id), j = me ? inJ(me) && !!JAIL[pos] : false; // nur Gefängnis, wenn pos selbst ein FP-Feld ist
     const here = players.filter(p => tgt(p) === pos && inJ(p) === j);
     const k = Math.max(0, here.findIndex(p => p.id === id));
     if (j) { const J = JAIL[pos], o = here.length < 2 ? 0 : (k - (here.length - 1) / 2) * 7; return [J.x + o, J.y - 1 + (k % 2) * 2]; }
     const o = here.length < 2 ? [0, 0] : LAY[here.length] ? LAY[here.length][k] : offset(k);
-    return [F[pos].x + o[0], F[pos].y + o[1]];
+    return [f.x + o[0], f.y + o[1]];
   }
   function make(p) {
     const g = el('g', { class: 'pawn', style: `--d:${(-Math.random() * 7).toFixed(2)}s` }, pawnLayer);
@@ -80,7 +82,8 @@ window.BoardView = function (svg, board) {
     const cuffs = el('g', { class: 'cuffs', transform: 'translate(0,-8)' }, g);
     el('circle', { cx: -2.6, cy: 0, r: 2.1 }, cuffs); el('circle', { cx: 2.6, cy: 0, r: 2.1 }, cuffs); el('path', { d: 'M-0.6 0 h1.2' }, cuffs);
     const name = el('text', { class: 'pname', x: 0, y: 9.6, 'text-anchor': 'middle' }, g);
-    return { g, bob, inner, name, pos: p.pos, target: p.pos, jt: !!p.jail, x: F[p.pos].x, y: F[p.pos].y, queue: [], anim: null, fig: null, col: null };
+    const home = F[p.pos] || F[0];
+    return { g, bob, inner, name, pos: p.pos, target: p.pos, jt: !!p.jail, x: home.x, y: home.y, queue: [], anim: null, fig: null, col: null };
   }
   let raf = null, stepMs = 260;
   function setXY(P, x, y, lift, rot) { P.x = x; P.y = y; P.g.setAttribute('transform', `translate(${x.toFixed(2)},${(y - (lift || 0)).toFixed(2)})${rot ? ` rotate(${rot.toFixed(1)})` : ''}`); }
@@ -116,13 +119,13 @@ window.BoardView = function (svg, board) {
         if (p.pos !== P.target || jt !== P.jt) {
           const from = P.target, to = p.pos, wasJ = P.jt && !!JAIL[from]; P.target = to; P.jt = jt; P_moving.add(p.id);
           const lm = opts.lastMove;
-          if (wasJ && (!jt || to !== from)) P.queue.push({ kind: 'walk', x: F[from].x, y: F[from].y, dur: 700, onStart: () => { P.g.classList.remove('cuffed'); opts.onRelease && opts.onRelease(p); } });
+          if (wasJ && (!jt || to !== from) && F[from]) P.queue.push({ kind: 'walk', x: F[from].x, y: F[from].y, dur: 700, onStart: () => { P.g.classList.remove('cuffed'); opts.onRelease && opts.onRelease(p); } });
           if (to === from) { /* nur Gefaengnis-Wechsel */ }
           else if (lm && lm.playerId === p.id && lm.kind === 'slide' && lm.to === to) {
             P.queue.push({ kind: 'slide', x: F[to].x, y: F[to].y, dur: 1300, onStart: () => opts.onSlide && opts.onSlide(p) });
           } else {
             const dir = Math.sign(to - from), n = Math.abs(to - from), d = Math.max(120, Math.min(stepMs, 4000 / n));
-            for (let i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) { const f = F[i]; P.queue.push({ kind: 'hop', x: f.x, y: f.y, dur: d, onEnd: () => opts.onHop && opts.onHop(p) }); }
+            for (let i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) { const f = F[i]; if (f) P.queue.push({ kind: 'hop', x: f.x, y: f.y, dur: d, onEnd: () => opts.onHop && opts.onHop(p) }); }
           }
           if (jt && JAIL[to]) P.queue.push({ kind: 'walk', x: JAIL[to].x, y: JAIL[to].y, dur: 1300, onStart: () => { P.g.classList.add('cuffed'); opts.onArrest && opts.onArrest(p); } });
           P.queue.push({ kind: 'settle', dur: 1, get x() { return restXY(to, players, p.id)[0]; }, get y() { return restXY(to, players, p.id)[1]; } });

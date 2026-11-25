@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>3D-Stadt Aufnahme</title>
+<style>html,body{margin:0;background:#d7ebf8}canvas{width:1280px;height:720px;display:block}</style></head>
+<body>
+<canvas id="c" width="1280" height="720"></canvas>
+<script src="/city3d/stadt.js"></script>
+<script type="module">
+const cfg = await (await fetch('/api/config')).json();
+const params = new URLSearchParams(location.search);
+const city = City3D.mount(document.getElementById('c'), cfg.board, { quality: params.get('q') || 'mittel' });
+window.__city = city;
+window.__bootError = null;
+window.__ready = city.ready.then(() => { city.start(); return true; }).catch((err) => {
+  window.__bootError = String(err && err.stack || err);
+  throw err;
+});
+</script>
+</body></html>

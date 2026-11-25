@@ -1,9 +1,9 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8"><title>BERUFE-RALLYE – Spielleitung</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/fragekarte.css"></head>
 <body><div class="host" id="hostroot">
- <div class="boardwrap"><svg id="board"></svg><div id="toast" class="toast"></div><div id="bigdice" class="bigdice"></div></div>
+ <div class="boardwrap" id="boardwrap"><svg id="board"></svg><canvas id="city3d" class="city" aria-label="3D-Stadt"></canvas><div id="cityhud" class="cityhud" hidden><b id="citytitle">3D-Stadt</b><span id="citysub"></span></div><div id="toast" class="toast"></div><div id="bigdice" class="bigdice"></div></div>
  <div class="side">
-  <div class="hudbuttons"><button class="ghost" id="fsbtn" onclick="toggleFS()" title="Vollbild">⛶ Vollbild</button><button class="ghost" id="mutebtn" onclick="toggleMute()" title="Ton an/aus"></button><button class="ghost" id="menubtn" onclick="toggleMenu()" style="display:none">☰ Menü</button></div>
+  <div class="hudbuttons"><button type="button" class="ghost sel" id="btn2d">2D</button><button type="button" class="ghost" id="btn3d">3D</button><label class="hint" title="Automatisch startet auf Mittel, ausgelegt für den Kurslaptop am Beamer.">Qualität <select id="qselect" aria-label="Qualität der 3D-Stadt"><option value="auto">Auto</option><option value="niedrig">Niedrig</option><option value="mittel">Mittel</option><option value="hoch">Hoch</option></select></label><span id="fpslabel" class="fps"></span><button class="ghost" id="fsbtn" onclick="toggleFS()" title="Vollbild">⛶ Vollbild</button><button class="ghost" id="mutebtn" onclick="toggleMute()" title="Ton an/aus"></button><button class="ghost" id="menubtn" onclick="toggleMenu()" style="display:none">☰ Menü</button></div>
   <div class="join" id="join"><div class="hint" id="joinhint">Mit dem Handy beitreten (gleiches WLAN):</div><img id="qr" alt="QR-Code"><div class="url" id="url"></div><div class="hint" id="alt"></div></div>
   <div class="hint cardcount" id="cardcount" style="font-size:12px"></div><div class="roomcode" id="roomcode"></div>
   <div id="phase" class="phase" style="font-size:20px;font-weight:700"></div>
@@ -17,11 +17,51 @@
 <div class="overlay" id="pinov" style="z-index:20"><div class="card" style="max-width:460px"><h2 style="margin:0 0 10px">Spielleitung</h2><p>Bitte die Spielleitungs-PIN eingeben.</p><input id="pin" type="password" inputmode="numeric" autocomplete="off" style="font-size:34px;text-align:center;width:100%;padding:10px;border-radius:12px;border:2px solid #ccd" maxlength="12"><div class="err" id="pinerr" style="color:#c23b3b;min-height:1.4em;margin:8px 0"></div><button class="ok" style="font-size:22px;width:100%" onclick="sendPin()">Anmelden</button></div></div>
 <div class="overlay" id="settingsov" style="z-index:12"><div class="settingscard"><div class="settingstop"><h2>⚙ Spielleitung</h2><button class="ghost" onclick="closeSettings()">✕ Schließen</button></div><div id="settingsbody"></div></div></div>
 <div class="overlay" id="ov"><div class="card" id="card"></div></div>
-<script src="/vendor/socket.io.min.js"></script><script src="/figuren.js"></script><script src="/effekte.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script>
+<script src="/vendor/socket.io.min.js"></script><script src="/figuren.js"></script><script src="/effekte.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script><script src="/city3d/stadt.js"></script>
 <script>
 const $ = id => document.getElementById(id), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let board, view, S; const sock = io(); let roomCode = '', opening = false; const HOST_KEY = 'rallye_host_token';
-async function loadCfg() { board = (await (await fetch('/api/config')).json()).board; view = BoardView($('board'), board); if (S) render(S); }
+let board, view, S, city; const sock = io(); let roomCode = '', opening = false; const HOST_KEY = 'rallye_host_token';
+const viewParams = new URLSearchParams(location.search);
+const storedMode = viewParams.get('ansicht') || localStorage.getItem('br-darstellung') || '2d';
+const storedQ = viewParams.get('qualitaet') || localStorage.getItem('br-qualitaet') || 'auto';
+if (['auto','niedrig','mittel','hoch'].includes(storedQ) && $('qselect')) $('qselect').value = storedQ;
+let cityBoot = false;
+async function loadCfg() { board = (await (await fetch('/api/config')).json()).board; view = BoardView($('board'), board); if (city) city.setBoard(board); if (S) render(S); if (!cityBoot) { cityBoot = true; setMode(storedMode === '3d' ? '3d' : '2d'); } }
+function ensureCity() {
+  if (city || !board) return city;
+  if (!window.City3D || !City3D.webglAvailable()) return null;
+  try {
+    city = City3D.mount($('city3d'), board, {
+      quality: $('qselect').value || 'auto',
+      onFallback(msg) { setMode('2d', msg); },
+      onFps(info) { $('fpslabel').textContent = info.label || ''; },
+      onHud(info) { $('citytitle').textContent = info.title || '3D-Stadt'; $('citysub').textContent = info.sub || ''; }
+    });
+  } catch (err) { console.error(err); city = null; }
+  return city;
+}
+function setMode(next, note) {
+  if (next === '3d') {
+    if (!window.City3D || !City3D.webglAvailable()) { note = note || 'WebGL fehlt auf diesem Gerät. Es bleibt beim 2D-Brett.'; next = '2d'; }
+    else if (!ensureCity()) { note = note || 'Die 3D-Stadt konnte nicht starten. Es bleibt beim 2D-Brett.'; next = '2d'; }
+  }
+  localStorage.setItem('br-darstellung', next);
+  document.body.classList.toggle('mode-3d', next === '3d');
+  $('btn2d').classList.toggle('sel', next === '2d');
+  $('btn3d').classList.toggle('sel', next === '3d');
+  $('cityhud').hidden = next !== '3d';
+  $('fpslabel').style.display = next === '3d' ? '' : 'none';
+  if (next === '3d' && city) { city.start(); if (S) city.update(S); }
+  else if (city) city.stop();
+  let box = $('citynote');
+  if (!box) { box = document.createElement('div'); box.id = 'citynote'; box.className = 'citynote'; $('phase').before(box); }
+  if (note) { box.hidden = false; box.textContent = note; }
+  else if (next === '3d') box.hidden = true;
+  if (S) renderOverlay(S);
+}
+$('btn2d').onclick = () => setMode('2d');
+$('btn3d').onclick = () => setMode('3d');
+$('qselect').onchange = () => { localStorage.setItem('br-qualitaet', $('qselect').value); if (city) city.setQuality($('qselect').value); };
 function joinInfo() { if (!roomCode) return; fetch('/api/join-info?r=' + roomCode).then(r => r.json()).then(j => { $('qr').src = j.qr; $('url').textContent = j.url; $('roomcode').innerHTML = '<small>RAUM</small> ' + roomCode; if (j.online) $('joinhint').textContent = 'Mit dem Handy beitreten (Internet):'; $('alt').textContent = j.alternatives.length ? 'Falls nicht erreichbar: ' + j.alternatives.join(', ') : ''; }); }
 function openRoom() { if (opening) return; opening = true; sock.emit('host:open', { token: localStorage.getItem(HOST_KEY) }, r => { opening = false; if (!r.ok) { $('pinerr').textContent = r.error; return; } localStorage.setItem(HOST_KEY, r.token); roomCode = r.code; joinInfo(); }); }
 sock.on('roomClosed', r => { localStorage.removeItem(HOST_KEY); $('pinerr').textContent = 'Der Raum wurde geschlossen (' + r.why + '). Hier neu anmelden.'; hostOk = false; $('pinov').classList.add('show'); });
@@ -37,7 +77,7 @@ function toggleMute() { Effekte.toggle(); updMute(); }
 function updMute() { $('mutebtn').textContent = Effekte.muted ? '🔇 Ton aus' : '🔊 Ton an'; } updMute();
 function toggleMenu() { menuOpen = !menuOpen; $('hostroot').classList.toggle('menuopen', menuOpen); $('menubtn').textContent = menuOpen ? '✕ Schließen' : '☰ Menü'; }
 $('hostroot').addEventListener('click', e => { if (menuOpen && e.target === $('hostroot')) toggleMenu(); });
-const emit = (e, a) => sock.emit(e, a);
+function emit(e, ...a) { sock.emit(e, ...a); }
 let lastRollAt = 0, lastPendKey = '', lastPhase = '', diceTimer = null;
 sock.on('state', s => { const prev = S; S = s; if (board) { effects(prev, s); render(s); } });
 function fieldLabel(pos, s) { return pos === 0 ? 'START' : pos === s.last ? 'ZIEL' : 'Feld ' + pos; }
@@ -77,7 +117,8 @@ function render(s) {
   if (view && view.setCounts) view.setCounts(s.deckSize);
   $('cardcount').textContent = 'Kartensatz: ' + (s.cardCount ? s.cardCount.action + ' Aktion · ' + s.cardCount.question + ' Fragen' : '');
   const cur = s.players[s.turn], playing = s.phase === 'playing';
-  view.update(s.players, { stepMs: s.stepMs || board.rules.stepMs, activeId: playing && cur ? cur.id : null, lastMove: s.lastMove, onSlide: () => Effekte.play('rutsche'), onHop: () => Effekte.play('figur_hopp'), onArrest: () => { Effekte.play('handschellen_klick'); setTimeout(() => Effekte.play('gefaengnis_tuer_zu'), 700); }, onRelease: () => Effekte.play('gefaengnis_tuer_auf') });
+  try { view.update(s.players, { stepMs: s.stepMs || board.rules.stepMs, activeId: playing && cur ? cur.id : null, lastMove: s.lastMove, onSlide: () => Effekte.play('rutsche'), onHop: () => Effekte.play('figur_hopp'), onArrest: () => { Effekte.play('handschellen_klick'); setTimeout(() => Effekte.play('gefaengnis_tuer_zu'), 700); }, onRelease: () => Effekte.play('gefaengnis_tuer_auf') }); } catch (err) { console.error(err); }
+  if (city) city.update(s);
   const compact = s.phase !== 'lobby'; $('hostroot').classList.toggle('compact', compact); $('menubtn').style.display = compact ? '' : 'none';
   if (!compact && menuOpen) toggleMenu();
   $('phase').textContent = s.paused ? '⏸ PAUSE' : s.phase === 'lobby' ? `Lobby – ${s.players.length} Spieler/Teams` + (s.room && s.room.settings.packs && s.room.settings.packs.length ? ' · Pakete: ' + s.room.settings.packs.length : '') : playing ? (compact ? 'Am Zug' : `Am Zug: ${cur ? cur.name : '-'}`) : 'Spiel beendet';
@@ -115,7 +156,7 @@ function printEval() {
   w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Auswertung BERUFE-RALLYE ${roomCode}</title><style>body{font:14px/1.4 Arial,sans-serif;margin:18mm;color:#111}h1{font-size:22px}h2{font-size:17px;margin-top:18px;border-bottom:2px solid #333}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}.evq{page-break-inside:avoid;border:1px solid #bbb;border-radius:6px;padding:6px 10px;margin:8px 0}.evq ul{margin:4px 0;padding-left:18px}.evq li.mine{font-weight:bold}.evc{float:right;color:#444;font-weight:normal}.evmeta{color:#444}</style></head><body>${evalHTML(S, true)}<script>setTimeout(()=>print(),300)<\/script></body></html>`);
   w.document.close();
 }
-function scaleCard(card) { const fk = card.querySelector('.fk'); Fragekarte.fit(fk); const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.55 / fk.offsetHeight); fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left'; const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto'; }
+function scaleCard(card) { const fk = card.querySelector('.fk'); if (!fk) return; Fragekarte.fit(fk); const fit = document.body.classList.contains('mode-3d') ? 0.4 : 0.62; const k = Math.min(innerWidth * fit / fk.offsetWidth, innerHeight * (document.body.classList.contains('mode-3d') ? 0.42 : 0.55) / fk.offsetHeight); fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left'; const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto'; }
 function renderOverlay(s) {
   const ov = $('ov'), card = $('card'), pd = s.pending;
   if (s.phase === 'finished' && s.winner) {
