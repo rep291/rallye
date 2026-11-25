@@ -136,9 +136,9 @@ export function buildCity(scene, layout, board) {
   ground.translate(cx, 0, cz);
   addGeo(solid, ground, '#63b85c');
 
-  ribbon(solid, pts, 1.15, 0.045, '#e4c07a');
-  ribbon(solid, sideLine(pts, 1, 2.15, 3.5), 0.55, 0.06, '#f3e2b0');
-  ribbon(solid, sideLine(pts, -1, 2.15, 3.5), 0.55, 0.06, '#f3e2b0');
+  ribbon(solid, pts, 2.7, 0.035, '#efe4d2');
+  ribbon(solid, pts, 1.95, 0.055, '#c5bfb4');
+  ribbon(solid, pts, 1.55, 0.08, '#3d4452');
 
   const tileColor = {
     start: colors.start || '#2e9e5b',

@@ -105,15 +105,102 @@ function crowdAt(points, buildings, x, z) {
   return s;
 }
 
+const SHOP_RANGES = [
+  ['schlosserei', 6, 12], ['kueche', 15, 21], ['labor', 24, 30], ['lager', 39, 45],
+  ['buero', 48, 54], ['friseur', 57, 61], ['baustelle', 72, 78], ['krankenhaus', 81, 84],
+  ['autowerkstatt', 90, 96],
+];
+
+function buildingAt(i) {
+  for (const [id, a, b] of SHOP_RANGES) if (i >= a && i <= b) return id;
+  return null;
+}
+
+function bow(x0, x1, z, amp, n) {
+  const p = [];
+  for (let i = 0; i <= n; i++) {
+    const u = i / n;
+    p.push([x0 + (x1 - x0) * u, z + Math.sin(Math.PI * u) * amp]);
+  }
+  return p;
+}
+
+function arc(cx, cz, r, a0, a1, n) {
+  const p = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * (i / n);
+    p.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]);
+  }
+  return p;
+}
+
+function chain(parts) {
+  const o = [];
+  for (const part of parts) {
+    for (const q of part) {
+      const last = o[o.length - 1];
+      if (last && Math.hypot(last[0] - q[0], last[1] - q[1]) < 0.25) continue;
+      o.push(q);
+    }
+  }
+  return o;
+}
+
+function polyLen(pts) {
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  return L;
+}
+
+function pointAt(pts, dist) {
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0] - pts[i - 1][0];
+    const dz = pts[i][1] - pts[i - 1][1];
+    const seg = Math.hypot(dx, dz) || 1;
+    if (acc + seg >= dist || i === pts.length - 1) {
+      const u = Math.min(1, (dist - acc) / seg);
+      return { x: pts[i - 1][0] + dx * u, z: pts[i - 1][1] + dz * u, tx: dx / seg, tz: dz / seg };
+    }
+    acc += seg;
+  }
+  const last = pts[pts.length - 1];
+  return { x: last[0], z: last[1], tx: 1, tz: 0 };
+}
+
+/** Geschwungene Straße mit zwei Kehren, passend zu 102 Feldern. */
+function windSamples(n) {
+  const R = 20;
+  const amp = 6;
+  const wps = chain([
+    bow(0, 96, 0, -amp, 16),
+    arc(96, R, R, -Math.PI / 2, Math.PI / 2, 10),
+    bow(96, 0, R * 2, amp, 16),
+    arc(0, R * 3, R, -Math.PI / 2, -Math.PI * 1.5, 10),
+    bow(0, 100, R * 4, amp, 16),
+  ]);
+  const total = polyLen(wps);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(pointAt(wps, (n === 1 ? 0 : i / (n - 1)) * total));
+  return out;
+}
+
 export function buildLayout(fields) {
   const list = Array.isArray(fields) ? fields : [];
   const runs = scaleRuns(Math.max(0, list.length - 1));
   const points = [];
+  if (list.length === 102) {
+    const samples = windSamples(102);
+    for (let i = 0; i < 102; i++) {
+      const s = samples[i];
+      points.push(makePoint(i, list[i], s.x, s.z, s.tx, s.tz, buildingAt(i)));
+    }
+  }
   let x = 0;
   let z = 0;
   const seed = runs[0] || { dx: 1, dz: 0 };
   const firstLen = Math.hypot(seed.dx, seed.dz) || 1;
-  points.push(makePoint(0, list[0], x, z, seed.dx / firstLen, seed.dz / firstLen, null));
+  if (!points.length) points.push(makePoint(0, list[0], x, z, seed.dx / firstLen, seed.dz / firstLen, null));
   for (let r = 0; r < runs.length && points.length < list.length; r++) {
     const run = runs[r];
     const len = Math.hypot(run.dx, run.dz) || 1;
@@ -199,9 +286,31 @@ function makePoint(index, field, x, z, tx, tz, building) {
 
 function makeBuilding(id, points, from, to) {
   const meta = PROFESSIONS[id];
-  const a = points[from];
-  const b = points[to];
-  const span = Math.hypot(b.x - a.x, b.z - a.z);
+  let tx = 0;
+  let tz = 0;
+  let cx = 0;
+  let cz = 0;
+  const count = to - from + 1;
+  for (let i = from; i <= to; i++) {
+    tx += points[i].tx;
+    tz += points[i].tz;
+    cx += points[i].x;
+    cz += points[i].z;
+  }
+  tx /= count;
+  tz /= count;
+  const mag = Math.hypot(tx, tz) || 1;
+  tx /= mag;
+  tz /= mag;
+  cx /= count;
+  cz /= count;
+  let minA = Infinity;
+  let maxA = -Infinity;
+  for (let i = from; i <= to; i++) {
+    const along = (points[i].x - cx) * tx + (points[i].z - cz) * tz;
+    if (along < minA) minA = along;
+    if (along > maxA) maxA = along;
+  }
   return {
     id,
     name: meta.name,
@@ -211,15 +320,12 @@ function makeBuilding(id, points, from, to) {
     trim: meta.trim,
     roof: meta.roof,
     open: !!meta.open,
-    cx: (a.x + b.x) / 2,
-    cz: (a.z + b.z) / 2,
-    tx: a.tx,
-    tz: a.tz,
-    sx: a.sx,
-    sz: a.sz,
-    length: span + STEP,
-    depth: meta.open ? 7.2 : 6.8,
-    height: meta.open ? 2.5 : 3.9,
+    cx, cz, tx, tz,
+    sx: -tz,
+    sz: tx,
+    length: (maxA - minA) + STEP,
+    depth: meta.open ? 8.2 : 7.6,
+    height: meta.open ? 2.6 : 3.4,
     fieldFrom: from,
     fieldTo: to,
   };

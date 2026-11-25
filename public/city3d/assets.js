@@ -1,6 +1,7 @@
 // Lädt die CC0-Modelle (Kenney, Quaternius) und stellt die Stadt damit.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { yawFacing } from './layout.js';
 import { makeTextPlane, paintCharacter } from './figures.js';
 
@@ -14,6 +15,11 @@ const FILES = {
   planter: K + 'suburban/planter.glb',
   fence: K + 'suburban/fence-1x3.glb',
   lamp: K + 'roads/light-curved.glb',
+  roundabout: K + 'roads/road-roundabout.glb',
+  light: K + 'roads/traffic-light.glb',
+  dumpster: K + 'roads/dumpster.glb',
+  stop: K + 'roads/road-sign-stop.glb',
+  bend: K + 'roads/road-bend.glb',
   road: K + 'roads/road-straight.glb',
   cone: K + 'roads/construction-cone.glb',
   barrier: K + 'roads/construction-barrier.glb',
@@ -37,6 +43,16 @@ const FILES = {
   houseE: K + 'commercial/low-detail-building-e.glb',
   houseG: K + 'commercial/low-detail-building-g.glb',
   houseI: K + 'commercial/low-detail-building-i.glb',
+  skyA: K + 'commercial/building-skyscraper-a.glb',
+  skyB: K + 'commercial/building-skyscraper-b.glb',
+  skyC: K + 'commercial/building-skyscraper-c.glb',
+  homeA: K + 'suburban/building-type-a.glb',
+  homeC: K + 'suburban/building-type-c.glb',
+  homeE: K + 'suburban/building-type-e.glb',
+  homeG: K + 'suburban/building-type-g.glb',
+  homeK: K + 'suburban/building-type-k.glb',
+  suv: K + 'cars/suv.glb',
+  bus: K + 'cars/delivery.glb',
   shopA: K + 'commercial/building-a.glb',
   shopD: K + 'commercial/building-d.glb',
   shopF: K + 'commercial/building-f.glb',
@@ -167,13 +183,15 @@ export function dressWorld(scene, layout, lib, built) {
   scene.userData.detail = detail;
   const yawFor = b => yawFacing(b.sx, b.sz);
   const actors = [];
+  const roofs = [];
 
   for (const b of layout.buildings) {
     const spec = SHOPS[b.id];
     if (!spec) continue;
     const yaw = yawFor(b);
-    const house = spot(b, 0, 7.2);
-    place(group, lib.all[spec.house], 4.6, house.x, house.z, yaw);
+    addRoom(group, b, roofs);
+    const house = spot(b, 0, 10.5);
+    place(group, lib.all[spec.house], 5.4, house.x, house.z, yaw);
     const signPos = spot(b, 0, 5.4);
     const sign = makeTextPlane(b.name, { w: 512, h: 160, bg: '#fff8ee', fg: '#3a2418', stripe: '#e07a32', pw: 3.4, ph: 1.05, font: 64 });
     sign.position.set(signPos.x, 3.15, signPos.z);
@@ -182,7 +200,8 @@ export function dressWorld(scene, layout, lib, built) {
     const aw = spot(b, 0, 4.6);
     place(group, lib.all.awning, 1.1, aw.x, aw.z, yaw);
     for (const [id, h, along, side] of spec.props) {
-      const p = spot(b, along, side);
+      const sideIn = Math.sign(side || 1) * Math.min(Math.abs(side), 2.15);
+      const p = spot(b, along * 0.55, sideIn);
       const obj = place(group, lib.all[id], h, p.x, p.z, yaw + (id === 'sedan' || id === 'van' ? Math.PI / 2 : 0));
       if (obj && h > 1.4) obj.traverse(m => { if (m.isMesh) m.castShadow = true; });
     }
@@ -250,7 +269,244 @@ export function dressWorld(scene, layout, lib, built) {
 
   built.actors = actors;
   built.walkers = walkers;
+  built.roofs = roofs;
   if (built.peds) built.peds.replaced = true;
+  enrichCity(group, detail, lib, layout, built);
+}
+
+function addRoom(parent, b, roofs) {
+  const g = new THREE.Group();
+  g.position.set(b.cx, 0, b.cz);
+  g.rotation.y = Math.atan2(-b.tz, b.tx);
+  const L = Math.max(6, b.length);
+  const D = b.depth;
+  const H = b.open ? 1.35 : 2.85;
+  const wall = new THREE.MeshLambertMaterial({ color: b.wall });
+  const floorM = new THREE.MeshLambertMaterial({ color: b.floor });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, D), floorM);
+  floor.position.y = 0.1;
+  floor.receiveShadow = true;
+  g.add(floor);
+  const t = 0.28;
+  for (const z of [D / 2, -D / 2]) {
+    const side = new THREE.Mesh(new THREE.BoxGeometry(L, H, t), wall);
+    side.position.set(0, H / 2 + 0.12, z);
+    side.castShadow = true;
+    g.add(side);
+  }
+  const gap = 2.6;
+  const jamb = Math.max(0.4, (D - gap) / 2);
+  for (const x of [-L / 2, L / 2]) {
+    for (const z of [-(gap / 2 + jamb / 2), gap / 2 + jamb / 2]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(t, H, jamb), wall);
+      post.position.set(x, H / 2 + 0.12, z);
+      g.add(post);
+    }
+  }
+  if (!b.open) {
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(L + 0.4, 0.16, D + 0.4), new THREE.MeshLambertMaterial({ color: b.roof }));
+    roof.position.y = H + 0.22;
+    roof.castShadow = true;
+    g.add(roof);
+    roofs.push({ mesh: roof, from: b.fieldFrom, to: b.fieldTo });
+  }
+  parent.add(g);
+}
+
+function instanceOf(gltf, height, places, cast) {
+  if (!gltf || !places.length) return null;
+  const sample = gltf.scene.clone(true);
+  stand(sample, height);
+  sample.updateMatrixWorld(true);
+  const geos = [];
+  let map = null;
+  sample.traverse(o => {
+    if (!o.isMesh) return;
+    const g = o.geometry.clone();
+    g.applyMatrix4(o.matrixWorld);
+    geos.push(g);
+    if (o.material && o.material.map) map = o.material.map;
+  });
+  if (!geos.length) return null;
+  let geo = geos[0];
+  if (geos.length > 1) {
+    try { geo = mergeGeometries(geos); } catch { return null; }
+  }
+  const mat = new THREE.MeshLambertMaterial({ map, color: 0xffffff });
+  const mesh = new THREE.InstancedMesh(geo, mat, places.length);
+  mesh.userData.fullCount = places.length;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const dummy = new THREE.Object3D();
+  const color = new THREE.Color();
+  places.forEach((p, i) => {
+    dummy.position.set(p.x, p.y || 0, p.z);
+    dummy.rotation.set(0, p.rot || 0, 0);
+    dummy.scale.set(p.sx || 1, p.sy || 1, p.sz || 1);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+    if (p.color) mesh.setColorAt(i, color.set(p.color));
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.castShadow = !!cast;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function enrichCity(group, detail, lib, layout, built) {
+  const b = layout.bounds;
+  const pts = layout.points;
+  const density = [];
+  const remember = mesh => { if (mesh) { group.add(mesh); density.push(mesh); } };
+
+  const homes = [];
+  const types = ['homeA', 'homeC', 'homeE', 'homeG', 'homeK'];
+  const step = 16;
+  for (let x = b.minX - 18; x <= b.maxX + 28; x += step) {
+    for (let z = b.minZ - 18; z <= b.maxZ + 22; z += step) {
+      let near = false;
+      for (let i = 0; i < pts.length; i += 2) {
+        if (Math.hypot(pts[i].x - x, pts[i].z - z) < 11) { near = true; break; }
+      }
+      if (near) continue;
+      homes.push({ x, z, rot: ((x * 3 + z) % 4) * Math.PI / 2, kind: types[Math.abs(Math.floor(x + z)) % types.length], sy: 0.85 + ((Math.abs(x) + Math.abs(z)) % 5) * 0.05 });
+    }
+  }
+  for (const kind of types) {
+    const places = homes.filter(h => h.kind === kind).map(h => ({ x: h.x, z: h.z, rot: h.rot, sy: h.sy }));
+    remember(instanceOf(lib.all[kind], 4.8, places, true));
+  }
+  const skyline = [];
+  const edge = b.maxZ + 28;
+  for (let i = 0; i < 7; i++) skyline.push({ x: b.minX + i * 22, z: edge + (i % 2) * 8, rot: Math.PI, sy: 1.1 + (i % 3) * 0.25 });
+  remember(instanceOf(lib.all.skyA, 11, skyline.filter((_, i) => i % 3 === 0), true));
+  remember(instanceOf(lib.all.skyB, 13, skyline.filter((_, i) => i % 3 === 1), true));
+  remember(instanceOf(lib.all.skyC, 12, skyline.filter((_, i) => i % 3 === 2), true));
+
+  const hills = new THREE.Group();
+  const hillMat = new THREE.MeshLambertMaterial({ color: '#7ed36a' });
+  const hillGeo = new THREE.ConeGeometry(18, 11, 7);
+  [[b.minX - 30, b.minZ - 20], [b.maxX + 36, b.minZ - 16], [b.minX - 28, b.maxZ + 36], [b.maxX + 40, b.maxZ + 30], [(b.minX + b.maxX) / 2, b.maxZ + 42]].forEach(([x, z], i) => {
+    const m = new THREE.Mesh(hillGeo, hillMat);
+    m.position.set(x, 2, z);
+    m.scale.set(1 + i * 0.08, 0.8 + (i % 3) * 0.15, 1);
+    hills.add(m);
+  });
+  group.add(hills);
+
+  const pond = new THREE.Mesh(new THREE.CircleGeometry(7, 18), new THREE.MeshLambertMaterial({ color: '#3aa0d8' }));
+  pond.rotation.x = -Math.PI / 2;
+  pond.position.set(b.minX + 18, 0.12, b.minZ + 22);
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.8, 8), new THREE.MeshLambertMaterial({ color: '#d9d3c8' }));
+  rim.position.set(b.minX + 18, 0.4, b.minZ + 14);
+  group.add(pond, rim);
+
+  const stripes = [];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const dot = pts[i - 1].tx * pts[i].tx + pts[i - 1].tz * pts[i].tz;
+    if (dot > 0.35) continue;
+    for (let s = -1.2; s <= 1.2; s += 0.6) stripes.push({ x: pts[i].x + pts[i].tx * s, z: pts[i].z + pts[i].tz * s, rot: Math.atan2(pts[i].tx, pts[i].tz) });
+  }
+  const stripeGeo = new THREE.BoxGeometry(0.28, 0.04, 1.5);
+  const stripeMat = new THREE.MeshBasicMaterial({ color: '#f7f4ee' });
+  const stripeMesh = new THREE.InstancedMesh(stripeGeo, stripeMat, Math.max(1, stripes.length));
+  stripeMesh.userData.fullCount = stripes.length;
+  stripeMesh.count = stripes.length;
+  const dummy = new THREE.Object3D();
+  stripes.forEach((p, i) => {
+    dummy.position.set(p.x, 0.16, p.z);
+    dummy.rotation.y = p.rot;
+    dummy.updateMatrix();
+    stripeMesh.setMatrixAt(i, dummy.matrix);
+  });
+  stripeMesh.instanceMatrix.needsUpdate = true;
+  group.add(stripeMesh);
+  density.push(stripeMesh);
+
+  place(group, lib.all.roundabout, 0.9, 96, 20, 0);
+  place(group, lib.all.light, 2.6, 100, 8, 0);
+  place(group, lib.all.light, 2.6, -8, 62, Math.PI / 2);
+  place(group, lib.all.stop, 1.6, 20, 8, 0.4);
+  place(group, lib.all.bend, 1.2, 96, 6, 0);
+
+  const bins = [];
+  for (let i = 4; i < pts.length; i += 9) bins.push({ x: pts[i].x + pts[i].sx * 3.1, z: pts[i].z + pts[i].sz * 3.1, rot: yawFacing(pts[i].tx, pts[i].tz) });
+  remember(instanceOf(lib.all.dumpster, 1.15, bins, false));
+
+  const trees = [];
+  for (let i = 0; i < pts.length; i += 4) {
+    trees.push({ x: pts[i].x + pts[i].sx * (i % 8 === 0 ? 5.5 : -5.2), z: pts[i].z + pts[i].sz * (i % 8 === 0 ? 5.5 : -5.2), color: i % 3 ? '#3e9a4a' : '#2f7a38', rot: i });
+  }
+  const treeMesh = instanceOf(lib.all.treeL, 3.6, trees, false);
+  remember(treeMesh);
+  const root = group.parent;
+  root.userData.trees = treeMesh;
+  root.userData.treePlaces = trees;
+
+  const cars = ['sedan', 'taxi', 'suv', 'bus', 'van'];
+  const traffic = [];
+  const loop = roadLoop(layout.bounds);
+  for (let i = 0; i < 5; i++) {
+    const gltf = lib.all[cars[i % cars.length]];
+    const obj = cloneProp(gltf, i === 3 ? 1.7 : 1.25);
+    if (!obj) continue;
+    group.add(obj);
+    traffic.push({ obj, t: i / 5, speed: 0.045 + i * 0.008, loop });
+  }
+  root.userData.traffic = traffic;
+
+  const life = new THREE.Group();
+  const cloudGeo = new THREE.SphereGeometry(3.2, 7, 5);
+  const cloudMat = new THREE.MeshLambertMaterial({ color: '#fffaf3' });
+  for (let i = 0; i < 5; i++) {
+    const c = new THREE.Mesh(cloudGeo, cloudMat);
+    c.scale.set(1.8, 0.45, 1);
+    c.position.set(b.minX + i * 28, 18 + (i % 2) * 3, b.minZ + 10 + (i % 3) * 20);
+    life.add(c);
+  }
+  const birdGeo = new THREE.ConeGeometry(0.18, 0.7, 4);
+  birdGeo.rotateZ(Math.PI / 2);
+  const birdMat = new THREE.MeshLambertMaterial({ color: '#3d4454' });
+  const birds = new THREE.InstancedMesh(birdGeo, birdMat, 8);
+  birds.userData.fullCount = 8;
+  life.add(birds);
+  const puffs = [];
+  const puffGeo = new THREE.SphereGeometry(0.22, 6, 5);
+  const steamMat = new THREE.MeshBasicMaterial({ color: '#f7fbff', transparent: true, opacity: 0.55 });
+  const sparkMat = new THREE.MeshBasicMaterial({ color: '#ffb14a' });
+  for (let i = 0; i < 16; i++) {
+    const m = new THREE.Mesh(puffGeo, i < 8 ? steamMat : sparkMat);
+    m.visible = false;
+    life.add(m);
+    puffs.push({ m, life: 0, kind: i < 8 ? 'steam' : 'spark' });
+  }
+  group.add(life);
+  root.userData.life = life;
+  root.userData.birds = birds;
+  root.userData.puffs = puffs;
+  root.userData.density = density;
+  root.userData.bounds = layout.bounds;
+}
+
+function roadLoop(b) {
+  const pad = 8;
+  return [
+    { x: b.minX - pad, z: b.minZ - pad },
+    { x: b.maxX + pad, z: b.minZ - pad },
+    { x: b.maxX + pad, z: b.maxZ + pad },
+    { x: b.minX - pad, z: b.maxZ + pad },
+  ];
+}
+
+function loopPoint(loop, t) {
+  const n = loop.length;
+  const scaled = ((t % 1) + 1) % 1 * n;
+  const i = Math.floor(scaled) % n;
+  const u = scaled - Math.floor(scaled);
+  const a = loop[i];
+  const c = loop[(i + 1) % n];
+  return { x: a.x + (c.x - a.x) * u, z: a.z + (c.z - a.z) * u, tx: c.x - a.x, tz: c.z - a.z };
 }
 
 function spawnActor(gltf, clipName, tint) {
@@ -282,9 +538,77 @@ function sidePath(layout, side) {
   return layout.points.map(p => ({ x: p.x + p.sx * side, z: p.z + p.sz * side }));
 }
 
-export function stepCrowd(built, dt) {
+export function applyDensity(scene, frac) {
+  const list = (scene && scene.userData.density) || [];
+  for (const mesh of list) {
+    const full = mesh.userData.fullCount || mesh.count;
+    mesh.count = Math.max(0, Math.round(full * frac));
+  }
+  if (scene && scene.userData.life) scene.userData.life.visible = frac > 0.45;
+}
+
+export function stepCrowd(built, dt, scene) {
   if (!built) return;
   for (const a of built.actors || []) a.mixer.update(dt);
+  const now = performance.now() / 1000;
+  if (scene && scene.userData.trees && scene.userData.treePlaces) {
+    const mesh = scene.userData.trees;
+    const places = scene.userData.treePlaces;
+    const dummy = new THREE.Object3D();
+    const n = mesh.count;
+    for (let i = 0; i < n; i++) {
+      const p = places[i];
+      dummy.position.set(p.x, 0, p.z);
+      dummy.rotation.y = (p.rot || 0) + Math.sin(now * 1.3 + i) * 0.05;
+      dummy.rotation.z = Math.sin(now * 1.7 + i) * 0.03;
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+  const traffic = (scene && scene.userData.traffic) || [];
+  for (const car of traffic) {
+    car.t = (car.t + dt * car.speed) % 1;
+    const p = loopPoint(car.loop, car.t);
+    car.obj.position.set(p.x, 0, p.z);
+    car.obj.lookAt(p.x + p.tx, 0, p.z + p.tz);
+  }
+  if (scene && scene.userData.birds) {
+    const birds = scene.userData.birds;
+    const dummy = new THREE.Object3D();
+    const b = scene.userData.bounds || { minX: 0, minZ: 0, maxX: 80, maxZ: 80 };
+    for (let i = 0; i < birds.count; i++) {
+      const a = now * 0.35 + i;
+      dummy.position.set((b.minX + b.maxX) / 2 + Math.cos(a) * (18 + i * 3), 11 + Math.sin(a * 2) * 1.5, (b.minZ + b.maxZ) / 2 + Math.sin(a) * (14 + i));
+      dummy.rotation.y = -a;
+      dummy.updateMatrix();
+      birds.setMatrixAt(i, dummy.matrix);
+    }
+    birds.instanceMatrix.needsUpdate = true;
+  }
+  const inside = built.insideIndex;
+  for (const roof of built.roofs || []) roof.mesh.visible = !(inside >= roof.from && inside <= roof.to);
+  const puffs = (scene && scene.userData.puffs) || [];
+  const shop = (built.roofs || []).find(r => inside >= r.from && inside <= r.to);
+  built._puff = (built._puff || 0) - dt;
+  if (shop && puffs.length && built._puff <= 0) {
+    built._puff = 0.28;
+    const idle = puffs.find(p => p.life <= 0);
+    if (idle) {
+      idle.life = 1.2;
+      idle.m.visible = true;
+      idle.m.position.set(shop.mesh.parent.position.x, 1.2, shop.mesh.parent.position.z);
+      idle.kind = inside >= 15 && inside <= 21 ? 'steam' : 'spark';
+      idle.m.material = idle.kind === 'steam' ? puffs[0].m.material : puffs[8].m.material;
+    }
+  }
+  for (const p of puffs) {
+    if (p.life <= 0) continue;
+    p.life -= dt;
+    p.m.position.y += dt * (p.kind === 'steam' ? 0.8 : 1.4);
+    p.m.position.x += Math.sin(now * 6 + p.m.id) * dt * 0.2;
+    if (p.life <= 0) p.m.visible = false;
+  }
   for (const w of built.walkers || []) {
     const pts = w.path;
     if (!pts || pts.length < 2) continue;

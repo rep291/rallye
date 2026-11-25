@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { buildLayout, TILE_Y, yawFacing, kartenStimmung } from './layout.js';
 import { buildCity, stepPeds } from './scenery.js';
-import { loadWorldAssets, dressWorld, stepCrowd } from './assets.js';
+import { loadWorldAssets, dressWorld, stepCrowd, applyDensity } from './assets.js';
 import {
   createPlayerVisual, updateVisual, setCuffs, createLoader, makeNameSprite, makeTextPlane, pose, equipFromLibrary,
 } from './figures.js';
@@ -17,9 +17,9 @@ import {
 // dpr ist die Obergrenze vor devicePixelRatio. Schatten 0 = aus, sonst Kantenlänge der Karte.
 // decor: Anteil der instanzierten Bäume, Häuser und Laternen.
 const PRESETS = {
-  niedrig: { dpr: 0.75, peds: 8, npcs: 1, shadows: 0, decor: 0.5, shadowRadius: 0 },
-  mittel: { dpr: 1, peds: 14, npcs: 2, shadows: 1024, decor: 1, shadowRadius: 1.5 },
-  hoch: { dpr: 1.25, peds: 18, npcs: 2, shadows: 1024, decor: 1, shadowRadius: 2 },
+  niedrig: { dpr: 0.75, peds: 3, npcs: 1, shadows: 0, decor: 0.35, shadowRadius: 0 },
+  mittel: { dpr: 1, peds: 8, npcs: 2, shadows: 1024, decor: 1, shadowRadius: 2.5 },
+  hoch: { dpr: 1.25, peds: 12, npcs: 2, shadows: 1024, decor: 1, shadowRadius: 3 },
 };
 const DPR_CAP = 1.25;
 
@@ -181,7 +181,7 @@ export function mountCity(canvas, board, opts = {}) {
       if (top) burst(confetti, top.x, top.y + 1, top.z, 8);
     }
     stepNpcs(t);
-    stepCrowd(built, dt);
+    stepCrowd(built, dt, scene);
     stepCar(dt, t);
     stepCamera(dt, t);
     renderer.render(scene, camera);
@@ -237,7 +237,9 @@ export function mountCity(canvas, board, opts = {}) {
       sun.shadow.needsUpdate = true;
     }
     resize();
-    scene.fog.far = tier === 'niedrig' ? 90 : 140;
+    scene.fog.far = tier === 'niedrig' ? 90 : 150;
+    applyDensity(scene, preset.decor == null ? 1 : preset.decor);
+    sun.shadow.radius = preset.shadowRadius || 2.4;
   }
 
   function fallback(msg) {
@@ -389,6 +391,7 @@ export function mountCity(canvas, board, opts = {}) {
       });
     }
     const follow = followPawn();
+    built.insideIndex = follow ? follow.index : -1;
     ring.visible = !!(follow && follow.mode === 'free');
     if (follow && ring.visible) ring.position.set(follow.pos.x, TILE_Y + 0.05, follow.pos.z);
 
