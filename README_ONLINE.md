@@ -43,6 +43,12 @@ Mit dem `Dockerfile` läuft es auch bei anderen Docker-Hostern. Stand 2026:
 - **Fly.io** hat für neue Konten nur eine kurze Testphase.
 - **Railway** bietet nur 5 $ Testguthaben und danach 1 $ pro Monat.
 
+## Neu in V3: Regeln und Brett
+- **Finanzpolizei:** Mit einer 6 frei – dann sofort noch einmal würfeln und mit diesem Wurf ziehen (nicht mehr fix 6 Felder). Handy zeigt „Noch einmal würfeln!“.
+- **Ins ZIEL nur mit der genauen Zahl** (Standard, in ⚙ Einstellungen abschaltbar). Zu hoher Wurf: Figur bleibt stehen, Beamer und Handy melden „zu viel – fürs ZIEL brauchst du genau N“. Gilt auch für Karten/Bewertungen und im Zeitlimit-Modus.
+- **Brett:** Feld 100 ist ein Fragefeld, Feld 99 eine Rutsche auf 87. Die Rutschen-Beschriftung zeigt jetzt in Rutschrichtung (z. B. „3←15“).
+- Tests liegen in `tests/` (werden nicht ins Docker-Image kopiert), z. B. `FAST=1 TEST_HOOKS=1 NO_SAVE=1 PORT=3750 node server.js` und `node tests/regeln_test.js` (benötigt `socket.io-client`).
+
 ## Neu: Räume, Abstimmung, Teams, Zeitlimit, Auswertung
 - **Eigene Lobby pro Spielleitung:** Wer `/host` öffnet (online nach PIN), bekommt automatisch eine eigene Lobby mit Raumcode und QR-Code. Mehrere Gruppen spielen gleichzeitig auf demselben Server, jede mit eigenem Spielstand. Neu laden am Beamer führt in dieselbe Lobby zurück (Host-Token im Browser). Handys kommen per QR-Code (`/?r=CODE`) oder durch Eintippen des Codes in ihre Lobby. Verlassene Räume werden automatisch aufgeräumt (leer und ohne Spielleitung nach 30 Minuten, sonst nach 3 Stunden Inaktivität).
 - **Allein oder im Team:** Beim Beitreten wählt man „Allein“, „Team gründen“ (Teamname) oder „Team beitreten“. Mehrere Handys teilen sich eine Figur; jedes Team-Handy darf würfeln und antworten.

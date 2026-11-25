@@ -72,7 +72,7 @@ function createRoom() {
   rooms.set(room.code, room); use(room); G = null; newGame(false); log('Lobby eröffnet.'); return room;
 }
 function newGame(keepPlayers) {
-  const players = keepPlayers && G ? G.players.map(p => Object.assign(p, { pos: 0, skip: 0, jail: false, jailTries: 0, extra: false })) : [];
+  const players = keepPlayers && G ? G.players.map(p => Object.assign(p, { pos: 0, skip: 0, jail: false, jailTries: 0, extra: false, again: false })) : [];
   const old = G;
   G = { phase: 'lobby', players, turn: 0, pending: null, busy: false, paused: false, history: [], gameDeadline: null, gameRemaining: 0, winner: null, lastRoll: null, log: [], decks: { action: shuffle(deckCards('action')), question: shuffle(deckCards('question')) }, seq: old ? old.seq + 1 : 0, epoch: old ? (old.epoch || 0) + 1 : 0 };
   if (ROOM) ROOM.G = G;
@@ -102,7 +102,7 @@ function publicState(viewer) {
     cardCount: { action: (cards.action || []).length, question: (cards.question || []).length }, deckSize: { action: r.decks && r.decks.action === false ? 0 : deckCards('action').length, question: r.decks && r.decks.question === false ? 0 : deckCards('question').length }, decksOn: r.decks,
     phase: G.phase, turn: G.turn, seq: G.seq, stepMs: r.stepMs, lastRoll: G.lastRoll, winner: G.winner, log: G.log.slice(0, 8), busy: G.busy,
     teams: r.teams && r.teams.enabled ? r.teams.list : null, questionMode: r.questionMode,
-    lastMove: G.lastMove || null, players: G.players.map(p => ({ id: p.id, name: p.name, color: p.color, figure: p.figure, team: p.team, isTeam: !!p.isTeam, members: (p.members || []).map(m => ({ name: m.name, connected: m.connected })), pos: p.pos, skip: p.skip, jail: !!p.jail, connected: p.connected })), need: (r.finanzpolizei || {}).need || 6, last: LAST(),
+    lastMove: G.lastMove || null, players: G.players.map(p => ({ id: p.id, name: p.name, color: p.color, figure: p.figure, team: p.team, isTeam: !!p.isTeam, members: (p.members || []).map(m => ({ name: m.name, connected: m.connected })), pos: p.pos, skip: p.skip, jail: !!p.jail, again: !!p.again, connected: p.connected })), need: (r.finanzpolizei || {}).need || 6, finishExact: !!r.finishExact, last: LAST(),
     pending: G.pending && {
       type: G.pending.type, playerId: G.pending.playerId, resolved: G.pending.resolved, result: G.pending.result, delta: G.pending.delta, answer: G.pending.type === 'question' && G.pending.stage !== 'reveal' && !G.pending.resolved && !isActive ? null : G.pending.answer, answerLocked: G.pending.stage && G.pending.stage !== 'personal', stage: G.pending.stage, vote: voter && G.pending.votes ? (G.pending.votes[voter] ?? null) : null, canVote: !!(voter && G.pending.eligible && G.pending.eligible.includes(voter)), groupTotal: G.pending.eligible ? G.pending.eligible.length : 0, groupVoted: G.pending.votes ? Object.keys(G.pending.votes).length : 0, groupCounts: G.pending.stage === 'reveal' || G.pending.resolved ? voteCounts(G.pending) : null, deadline: G.pending.deadline,
       kind: G.pending.kind, text: G.pending.text,
@@ -125,7 +125,7 @@ function saveSoon() {
       fs.mkdirSync(path.dirname(SAVE_FILE), { recursive: true });
       const data = { v: 2, savedAt: Date.now(), rooms: [...rooms.values()].map(room => { const g = room.G; return { code: room.code, hostToken: room.hostToken, settings: room.settings, createdAt: room.createdAt, lastActive: room.lastActive,
         phase: g.phase, turn: g.turn, winner: g.winner, lastRoll: g.lastRoll, log: g.log, seq: g.seq, paused: !!g.paused, history: g.history || [], gameRemaining: g.gameDeadline ? Math.max(0, g.gameDeadline - Date.now()) : g.gameRemaining || 0, inTurn: !!(g.pending || g.busy),
-        players: g.players.map(p => ({ id: p.id, token: p.token, name: p.name, color: p.color, figure: p.figure, team: p.team, isTeam: !!p.isTeam, members: (p.members || []).map(m => ({ name: m.name, connected: m.connected })), pos: p.pos, skip: p.skip, jail: !!p.jail, jailTries: p.jailTries || 0, extra: !!p.extra, isTeam: !!p.isTeam, members: (p.members || []).map(m => ({ name: m.name, token: m.token })) })),
+        players: g.players.map(p => ({ id: p.id, token: p.token, name: p.name, color: p.color, figure: p.figure, team: p.team, isTeam: !!p.isTeam, members: (p.members || []).map(m => ({ name: m.name, connected: m.connected })), pos: p.pos, skip: p.skip, jail: !!p.jail, jailTries: p.jailTries || 0, extra: !!p.extra, again: !!p.again, isTeam: !!p.isTeam, members: (p.members || []).map(m => ({ name: m.name, token: m.token })) })),
         decks: { action: g.decks.action.map(c => c.id), question: g.decks.question.map(c => c.id) } }; }) };
       fs.writeFileSync(SAVE_FILE + '.tmp', JSON.stringify(data)); fs.renameSync(SAVE_FILE + '.tmp', SAVE_FILE);
     } catch (e) { console.error('Spielstand nicht gespeichert:', e.message); }
@@ -181,15 +181,17 @@ function win(p, timeMode) {
   G.gameDeadline = null; G.gameRemaining = 0; G.turnDeadline = null;
   log(timeMode ? `🏆 Zeit abgelaufen: ${p.name} führt auf Feld ${p.pos}.` : `🏆 ${p.name} ist im Ziel!`); broadcast();
 }
+// Ins ZIEL: mit finishExact (Standard) nur mit der genauen Zahl; zu viel = stehen bleiben (kein Zurueckprallen)
 function moveBy(p, steps) {
-  const last = LAST(), r = R(); let to = p.pos + steps;
-  if (to > last) to = r.finishExact ? last - (to - last) : last;
+  const last = LAST(), r = R(); let to = p.pos + steps; G.overshoot = null;
+  if (to > last) { if (r.finishExact) { G.overshoot = { playerId: p.id, need: last - p.pos, got: steps }; to = p.pos; } else to = last; }
   p.pos = Math.max(0, to); return p.pos === last;
 }
+const needTxt = n => `genau ${n === 1 ? 'eine 1' : n}`;
 const fname = pos => pos === 0 ? 'START' : pos === LAST() ? 'ZIEL' : 'Feld ' + pos;
 const animMs = (from, to) => Math.abs(to - from) * R().stepMs + 350;
 function applyEffect(p, e) {
-  e = e || { type: 'none' };
+  G.overshoot = null; e = e || { type: 'none' };
   if (e.type === 'move') return moveBy(p, e.steps | 0);
   if (e.type === 'moveTo') { p.pos = Math.max(0, Math.min(LAST(), e.field | 0)); return p.pos === LAST(); }
   if (e.type === 'toStart') p.pos = 0;
@@ -202,7 +204,8 @@ function endTurn() {
   G.pending = null; G.busy = false;
   const p = cur();
   G.turnDeadline = null;
-  if (p && p.extra) { p.extra = false; log(`${p.name} würfelt noch einmal.`); armTurnTimer(); broadcast(); return; }
+  if (p && p.extra) { p.extra = false; p.again = true; log(`${p.name} würfelt noch einmal.`); armTurnTimer(); broadcast(); return; }
+  if (p) p.again = false;
   for (let guard = 0; guard < G.players.length * 10; guard++) {
     G.turn = (G.turn + 1) % G.players.length;
     const n = cur();
@@ -244,6 +247,7 @@ function landed(p, fromCard, depth) {
     later(r.cardDisplayMs, () => {
       if (!G.pending || G.pending.card !== card) return;
       const from = p.pos; applyEffect(p, card.effect); G.pending = null;
+      if (G.overshoot && G.overshoot.playerId === p.id) { log(`🎯 ${p.name}: ${card.effectLabel || 'Karte'} – zu weit fürs ZIEL (${needTxt(G.overshoot.need)} nötig), bleibt stehen.`); G.overshoot = null; }
       if (p.pos !== from) { G.lastMove = { playerId: p.id, kind: 'walk', from, to: p.pos, seq: G.seq + 1 }; log(`${p.name} → ${fname(p.pos)}.`); broadcast(); later(animMs(from, p.pos), () => landed(p, true, depth + 1)); } else endTurn();
     });
   } else if (f.type === 'frage' && card0) {
@@ -290,27 +294,42 @@ function judge(v) {
   later(r.resultDisplayMs, () => {
     if (G.pending !== pd) return;
     const from = p.pos; if (delta) moveBy(p, delta); G.pending = null;
+    if (G.overshoot && G.overshoot.playerId === p.id) { log(`🎯 ${p.name}: +${delta} wäre über das ZIEL hinaus (${needTxt(G.overshoot.need)} nötig) – bleibt stehen.`); G.overshoot = null; }
     if (p.pos !== from) { G.lastMove = { playerId: p.id, kind: 'walk', from, to: p.pos, seq: G.seq + 1 }; broadcast(); later(animMs(from, p.pos), () => landed(p, true, 1)); } else endTurn();
   });
 }
 function doRoll(p) {
   if (G.phase !== 'playing' || G.pending || G.busy || G.paused || cur() !== p) return false;
   G.turnDeadline = null;
-  const r = R(), fp = r.finanzpolizei, d = 1 + Math.floor(Math.random() * r.dice), from = p.pos;
-  G.busy = true; let released = false;
+  const r = R(), fp = r.finanzpolizei, d = process.env.TEST_HOOKS && G.testDice && G.testDice.length ? G.testDice.shift() : 1 + Math.floor(Math.random() * r.dice), from = p.pos;
+  G.busy = true; let released = false; p.again = false;
   G.lastRoll = { playerId: p.id, value: d, from, to: from, at: Date.now() };
   if (p.jail) {
     p.jailTries = (p.jailTries || 0) + 1;
     const free = d === fp.need || (fp.maxTries > 0 && p.jailTries >= fp.maxTries);
     if (!free) { broadcast(); later(r.diceMs, () => { log(`🚓 ${p.name} würfelt ${d} – keine ${fp.need}, bleibt bei der Finanzpolizei.`); info(p, 'gesperrt', `${d} gewürfelt – keine ${fp.need}. Du bleibst bei der Finanzpolizei.`, endTurn); }); return true; }
     p.jail = false; released = true;
-    if (!fp.moveOnRelease) { broadcast(); later(r.diceMs, () => { log(`🚓 ${p.name} würfelt ${d} – frei! Nächster Zug normal.`); info(p, 'frei', `${d}! Du bist frei und ziehst im nächsten Zug weiter.`, endTurn); }); return true; }
+    const mode = fp.afterRelease || (fp.moveOnRelease === false ? 'wait' : 'rollAgain');
+    const why = d === fp.need ? `${d} gewürfelt` : `${p.jailTries} Versuche`;
+    if (mode === 'wait') { broadcast(); later(r.diceMs, () => { log(`🚓 ${p.name}: ${why} – frei! Nächster Zug normal.`); info(p, 'frei', `${why}! Du bist frei und ziehst im nächsten Zug weiter.`, endTurn); }); return true; }
+    if (mode === 'rollAgain') {
+      // Standard (V3): frei, dann sofort noch einmal wuerfeln und mit DIESER Zahl ziehen
+      p.extra = true; broadcast();
+      later(r.diceMs + (process.env.FAST ? 0 : 700), () => { log(`🚓 ${p.name}: ${why} – frei! Jetzt noch einmal würfeln.`); info(p, 'frei', `${why} – frei! Gleich noch einmal würfeln und mit dieser Zahl ziehen.`, endTurn); });
+      return true;
+    }
     log(`🚓 ${p.name} würfelt ${d} – frei!`);
   }
   log(`${p.name} würfelt ${d}.`); broadcast();
   // Wuerfel-Animation abwarten, dann ziehen
   later(r.diceMs, () => {
-    moveBy(p, d); G.lastRoll.to = p.pos; G.lastMove = { playerId: p.id, kind: 'walk', from, to: p.pos, seq: G.seq + 1 };
+    moveBy(p, d); G.lastRoll.to = p.pos;
+    if (G.overshoot && G.overshoot.playerId === p.id) {
+      const need = G.overshoot.need; G.overshoot = null; G.lastRoll.over = need;
+      G.log[0].msg = `🎯 ${p.name} würfelt ${d} – zu viel! Fürs ZIEL braucht es ${needTxt(need)}. Bleibt auf ${fname(p.pos)}.`;
+      return info(p, 'zuhoch', `${d} ist zu viel – fürs ZIEL brauchst du ${needTxt(need)}. Du bleibst stehen.`, endTurn);
+    }
+    G.lastMove = { playerId: p.id, kind: 'walk', from, to: p.pos, seq: G.seq + 1 };
     G.log[0].msg = `${p.name} würfelt ${d} → ${fname(p.pos)}.`; broadcast();
     later(animMs(from, p.pos) + (released && !process.env.FAST ? 700 : 0), () => landed(p, false, 0));
   });
@@ -478,6 +497,7 @@ io.on('connection', sock => {
   });
   H('host:rooms', (ack) => { if (typeof ack === 'function') ack([...rooms.values()].map(r => roomInfo(r, r.code === sock.data.hostRoom))); });
   H('host:closeRoom', () => { closeRoom(ROOM, 'beendet'); });
+  if (process.env.TEST_HOOKS) H('test:dice', a => { G.testDice = (Array.isArray(a) ? a : [a]).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= R().dice); }); // nur fuer Tests
   if (process.env.TEST_HOOKS) H('test:topCard', (kind, id) => { const d = G.decks[kind], c = (cards[kind] || []).find(x => x.id === id); if (d && c) d.push(c); }); // nur fuer Tests
   if (process.env.TEST_HOOKS) H('test:setPos', (id, pos, jail) => { const p = G.players.find(x => x.id === id); if (p) { p.pos = pos; if (jail !== undefined) p.jail = !!jail; broadcast(); } }); // nur fuer Tests
   H('host:reset', keep => { newGame(!!keep); G.lastMove = null; log(keep ? 'Neue Runde mit denselben Spielern.' : 'Neues Spiel.'); broadcast(); });

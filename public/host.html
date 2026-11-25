@@ -59,6 +59,7 @@ function effects(prev, s) {
     if (pd.type === 'question') { Effekte.play('karte_aufdecken'); setTimeout(() => Effekte.play('frage_erscheint'), 350); }
     if (pd.type === 'info') {
       if (pd.kind === 'rutsche' && !pd.sliding) toast(`<b>↩ Rutsche!</b> ${esc(p.name)}: ${esc(pd.text)}`, 'slide', 2600);
+      if (pd.kind === 'zuhoch') toast(`<b>🎯 Zu viel!</b> ${esc(p.name)}: ${esc(pd.text)}`, 'slide', 2600);
       if (pd.kind === 'finanzpolizei' || pd.kind === 'gesperrt' || pd.kind === 'frei') { if (pd.kind === 'finanzpolizei') Effekte.play('finanzpolizei_sirene'); toast(`<span class="beacon"></span><b>Finanzpolizei</b> · ${esc(p.name)}: ${esc(pd.text)}`, 'police', 3000); }
     }
   }
@@ -155,7 +156,7 @@ function openSettings() {
   $('settingsbody').innerHTML = `<p class="hint">Raum <b>${roomCode}</b> · Änderungen gelten nur hier. Bei laufenden Karten greifen Regeländerungen ab dem nächsten Zug.</p>
     <div class="settingsgrid">
      <label>Finanzpolizei: nach wie vielen Fehlversuchen frei? <small>0 = nur mit 6</small><input id="set_fp" type="number" min="0" max="20" value="${st.fpMaxTries ?? board.rules.finanzpolizei.maxTries ?? 0}"></label>
-     <label class="check"><input id="set_exact" type="checkbox" ${(st.finishExact ?? board.rules.finishExact) ? 'checked' : ''}> Exakte Zahl fürs Ziel (sonst zurückprallen)</label>
+     <label class="check"><input id="set_exact" type="checkbox" ${(st.finishExact ?? board.rules.finishExact) ? 'checked' : ''}> Ins ZIEL nur mit exakter Zahl (Standard; zu viel = stehen bleiben). Aus = jede Zahl reicht</label>
      <label class="check"><input id="set_a" type="checkbox" ${ck('actionCards')}> Aktionskarten aktiv</label>
      <label class="check"><input id="set_q" type="checkbox" ${ck('questionCards')}> Fragekarten aktiv</label>
      <label>Zugzeit-Limit (Sekunden)<small>0 = aus, danach automatischer Wurf</small><input id="set_turn" type="number" min="0" max="600" value="${st.turnTimeSec || 0}"></label>

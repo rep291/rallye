@@ -82,7 +82,7 @@ function render2(force) { const app = $('app'); const me = S.players.find(p => p
     else body = `<div class="status">❓ ${esc(p && p.name)} hat <b>${pd.answer != null ? L(pd.answer) : '–'}</b> gewählt${pd.vote !== null ? `, du <b>${L(pd.vote)}</b>` : ''}. Schau auf den Beamer – die Spielleitung bewertet.</div>${voteDist(pd)}`;
   } else if (pd && pd.type === 'info') {
     const who = S.players.find(x => x.id === pd.playerId);
-    body = `<div class="status">${pd.kind === 'rutsche' ? '↩' : '🚓'} <b>${esc(who && who.name)}</b><br>${esc(pd.text)}</div>`;
+    body = `<div class="status">${pd.kind === 'rutsche' ? '↩' : pd.kind === 'zuhoch' ? '🎯' : '🚓'} <b>${esc(who && who.name)}</b><br>${esc(pd.text)}</div>`;
   } else if (pd && pd.type === 'action' && pd.playerId === myId) {
     body = `<div class="hint">Deine Aktionskarte:</div><div class="phonecard">${Fragekarte.htmlAction(pd.card)}</div>`;
   } else if (pd) {
@@ -93,7 +93,7 @@ function render2(force) { const app = $('app'); const me = S.players.find(p => p
   } else if (myTurn && Date.now() < rollingUntil) {
     body = `<div class="status" style="text-align:center;font-size:24px">${Effekte.dice(1 + Math.floor(Math.random() * 6), true)} Würfelt …</div>`;
   } else if (myTurn) {
-    body = `<button class="bigroll" id="rollBtn" ${S.busy ? 'disabled' : ''} onclick="sock.emit('roll')">🎲 ${me.jail ? S.need + ' würfeln!' : 'Würfeln'}</button>${S.turnDeadline ? `<div class="hint" style="text-align:center" id="pcount"></div>` : ''}<div class="hint" style="text-align:center">${me.jail ? '🚓 Finanzpolizei: Nur mit einer ' + S.need + ' geht es weiter.' : 'Du bist dran!'}</div>`;
+    body = `<button class="bigroll" id="rollBtn" ${S.busy ? 'disabled' : ''} onclick="sock.emit('roll')">🎲 ${me.jail ? S.need + ' würfeln!' : me.again ? 'Noch einmal würfeln!' : 'Würfeln'}</button>${me.again && !me.jail ? '<div class="hint" style="text-align:center">Du darfst noch einmal würfeln – zieh mit der neuen Zahl.</div>' : ''}${S.finishExact && !me.jail && S.last - me.pos <= 6 ? `<div class="hint goalhint" style="text-align:center">🎯 Fürs ZIEL brauchst du genau <b>${S.last - me.pos}</b>.</div>` : ''}${S.turnDeadline ? `<div class="hint" style="text-align:center" id="pcount"></div>` : ''}<div class="hint" style="text-align:center">${me.jail ? '🚓 Finanzpolizei: Nur mit einer ' + S.need + ' geht es weiter.' : 'Du bist dran!'}</div>`;
   } else {
     body = `<div class="status">${esc(cur && cur.name)} ist dran …${me.skip ? '<br>⏸ Du setzt nächste Runde aus.' : ''}</div>`;
   }
