@@ -530,7 +530,7 @@ export function mountCity(canvas, board, opts = {}) {
   }
 
   function applyShot() {
-    camera.fov = shot === 'berufe' ? 48 : shot === 'griffe' ? 62 : shot === 'landwirt' ? 38 : 40;
+    camera.fov = shot === 'berufe' ? 48 : shot === 'griffe' ? 34 : shot === 'landwirt' ? 38 : 40;
     camera.updateProjectionMatrix();
     if (shot === 'kueche') {
       const b = layout.buildings.find(x => x.id === 'kueche');
@@ -553,8 +553,8 @@ export function mountCity(canvas, board, opts = {}) {
       _desired.set(11.65, 11.4, 17.6);
       _look.set(11.65, 0.35, 5.4);
     } else if (shot === 'griffe') {
-      _desired.set(2.025, 1.05, 4.25);
-      _look.set(2.025, 0.9, 0);
+      _desired.set(1.85, 1.15, 5.05);
+      _look.set(1.85, 0.95, 0);
     } else if (shot === 'landwirt') {
       _desired.set(-1.15, 1.02, 2.55);
       _look.set(-0.02, 0.78, 0.08);
@@ -896,7 +896,7 @@ export function mountCity(canvas, board, opts = {}) {
           clip: 'SitIdle',
           at: wait[i],
           prop: i ? 'Prop_Koffer' : null,
-          socket: 'Socket_Hand_R',
+          socket: 'Socket_Hand_L',
         }, { root: station }, content);
         if (actor) { npcs.push(actor); budget--; }
       }
