@@ -12,25 +12,64 @@ export const JOB_MODEL = {
   mechanik: 'NPC_Mechanikerin',
   koch: 'NPC_Koch',
   friseur: 'NPC_Friseurin',
-  it: 'NPC_Buero',
-  garten: 'NPC_Passant_Hoodie',
+  it: 'NPC_IT',
+  garten: 'NPC_Gaertnerin',
   labor: 'NPC_Laborantin',
   lager: 'NPC_Lagerist',
-  tischler: 'NPC_Schlosser',
-  elektrik: 'NPC_Schlosser',
+  tischler: 'NPC_Tischler',
+  elektrik: 'NPC_Elektriker',
   pflege: 'NPC_Pfleger',
   polizei: 'NPC_Polizist',
-  feuerwehr: 'NPC_Bauarbeiter',
-  maurer: 'NPC_Bauarbeiter',
-  maler: 'NPC_Passantin_Pulli',
-  baecker: 'NPC_Koch',
-  verkauf: 'NPC_Reisende_Business',
+  feuerwehr: 'NPC_Feuerwehr',
+  maurer: 'NPC_Maurer',
+  maler: 'NPC_Maler',
+  baecker: 'NPC_Baecker',
+  verkauf: 'NPC_Verkaeuferin',
   buero: 'NPC_Buero',
   arzt: 'NPC_Aerztin',
   schweiss: 'NPC_Schlosser',
-  fahrer: 'NPC_Reisender_Rucksack',
-  landwirt: 'NPC_Passant_Senior',
-  kiga: 'NPC_Passantin_Kleid',
+  fahrer: 'NPC_Fahrer',
+  landwirt: 'NPC_Landwirt',
+  kiga: 'NPC_Erzieherin',
+};
+
+export const JOB_ORDER = [
+  'mechanik', 'koch', 'friseur', 'it', 'garten', 'labor', 'lager', 'tischler', 'elektrik', 'pflege',
+  'polizei', 'feuerwehr', 'maurer', 'maler', 'baecker', 'verkauf', 'buero', 'arzt', 'schweiss', 'fahrer', 'landwirt', 'kiga',
+];
+
+export const JOB_LABEL = {
+  mechanik: 'Mechanik', koch: 'Koch', friseur: 'Friseur', it: 'IT', garten: 'Garten',
+  labor: 'Labor', lager: 'Lager', tischler: 'Tischler', elektrik: 'Elektrik', pflege: 'Pflege',
+  polizei: 'Polizei', feuerwehr: 'Feuerwehr', maurer: 'Maurer', maler: 'Maler', baecker: 'Bäcker',
+  verkauf: 'Verkauf', buero: 'Büro', arzt: 'Arzt', schweiss: 'Metall', fahrer: 'Fahrer',
+  landwirt: 'Landwirt', kiga: 'Kindergarten',
+};
+
+/** Prop, Socket und Clip laut LISTE.md. Balken und Reifen hängen an DEF-spine003. */
+export const JOB_GEAR = {
+  mechanik: { prop: 'Prop_Reifen', socket: 'DEF-spine003', clip: 'CarryWalk' },
+  koch: { prop: 'Prop_Kochloeffel', socket: 'Socket_Hand_R', clip: 'Stir' },
+  friseur: { prop: 'Prop_Schere', socket: 'Socket_Hand_R', prop2: 'Prop_Kamm', socket2: 'Socket_Hand_L', clip: 'Haircut' },
+  it: { clip: 'Idle' },
+  garten: { prop: 'Prop_Giesskanne', socket: 'Socket_Hand_R', clip: 'Idle' },
+  labor: { prop: 'Prop_Pipette', socket: 'Socket_Hand_R', prop2: 'Prop_Reagenzglas', socket2: 'Socket_Hand_L', clip: 'Pipette' },
+  lager: { prop: 'Prop_Kiste', socket: 'DEF-spine003', clip: 'CarryIdle' },
+  tischler: { prop: 'Prop_Saege', socket: 'Socket_Hand_R', clip: 'Chop' },
+  elektrik: { prop: 'Prop_Messgeraet', socket: 'Socket_Hand_L', clip: 'Idle' },
+  pflege: { prop: 'Prop_Tablett', socket: 'DEF-spine003', clip: 'CarryWalk' },
+  polizei: { clip: 'Idle' },
+  feuerwehr: { prop: 'Prop_Feuerloescher', socket: 'Socket_Hand_L', clip: 'Idle' },
+  maurer: { prop: 'Prop_Kelle', socket: 'Socket_Hand_R', clip: 'CrouchIdle' },
+  maler: { prop: 'Prop_Farbroller', socket: 'Socket_Hand_R', clip: 'Stir' },
+  baecker: { prop: 'Prop_Brot', socket: 'Socket_Hand_R', clip: 'Idle' },
+  verkauf: { prop: 'Prop_Einkaufskorb', socket: 'Socket_Hand_L', clip: 'Idle' },
+  buero: { clip: 'Idle' },
+  arzt: { clip: 'Examine' },
+  schweiss: { prop: 'Prop_Hammer', socket: 'Socket_Hand_R', clip: 'Hammer' },
+  fahrer: { clip: 'Idle' },
+  landwirt: { clip: 'Idle' },
+  kiga: { prop: 'Prop_Ball', socket: 'Socket_Hand_L', clip: 'Talk' },
 };
 
 const PLAYERS = ['Spieler_A', 'Spieler_B', 'Spieler_C', 'Spieler_D', 'Spieler_E', 'Spieler_F'];
@@ -42,7 +81,7 @@ const NAMED = {
   '#1f5fd6': 'blau',
   '#8e44c9': 'lila',
 };
-const ONESHOT = new Set(['Sit', 'StandUp', 'PickUp', 'Interact', 'KneelFix', 'Cuff']);
+const ONESHOT = new Set(['Sit', 'StandUp', 'PickUp', 'Interact', 'KneelFix', 'Cuff', 'PrisonerCuff']);
 
 const ENV = [
   'BR_Box_Schlosserei', 'BR_Box_Kueche', 'BR_Box_Labor', 'BR_Box_Lager', 'BR_Box_Buero',
@@ -257,6 +296,15 @@ export async function loadCityLib() {
       if (cur && cur !== a) a.crossFadeFrom(cur, opts.fade == null ? 0.2 : opts.fade, false);
       a.play();
       cur = a;
+      if (opts.onDone) {
+        const h = (e) => {
+          if (e.action !== a) return;
+          mixer.removeEventListener('finished', h);
+          opts.onDone();
+        };
+        mixer.addEventListener('finished', h);
+      }
+      return a;
     };
   }
 

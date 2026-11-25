@@ -26267,6 +26267,7 @@ void main() {
     prisonersit: ["prisonersit", "sitidle"],
     prisonerwalk: ["prisonerwalk", "walk"],
     prisoneridle: ["prisoneridle", "idle"],
+    prisonercuff: ["prisonercuff", "prisoneridle"],
     cheer: ["victory", "wave", "dance"],
     punch: ["hammer"],
     hammer: ["hammer"],
@@ -26276,9 +26277,28 @@ void main() {
     cuff: ["cuff"],
     lead: ["lead", "walk"]
   };
-  var ONCE = /* @__PURE__ */ new Set(["sit", "standup", "pickup", "interact", "kneelfix", "cuff"]);
+  var ONCE = /* @__PURE__ */ new Set(["sit", "standup", "pickup", "interact", "kneelfix", "cuff", "prisonercuff"]);
+  var CLIP_NAME = {
+    walk: "Walk", run: "Run", sit: "SitIdle", prisonersit: "PrisonerSit",
+    prisonerwalk: "PrisonerWalk", prisoneridle: "PrisonerIdle", prisonercuff: "PrisonerCuff",
+    cheer: "Victory", punch: "Hammer", hammer: "Hammer", pickup: "PickUp",
+    carry: "CarryWalk", idle: "Idle", cuff: "Cuff", lead: "Lead"
+  };
   function updateVisual(api, mode, t, dt) {
     if (!api) return;
+    if (api.play && api.mixer) {
+      const key = String(mode || "idle").toLowerCase();
+      const name = CLIP_NAME[key] || "Idle";
+      if (api.current !== name) {
+        api.current = name;
+        if (api.action) { api.action.fadeOut(0.12); api.action = null; }
+        const once = ONCE.has(key);
+        api.play(name, { fade: once ? 0.05 : 0.15, loop: !once });
+      }
+      api.mixer.update(dt || 0);
+      if (api.placeholder) api.placeholder.visible = false;
+      return;
+    }
     if (api.mixer && api.model) {
       const want = CLIP_FOR[mode] || [String(mode || "idle").toLowerCase(), "idle"];
       const clip = clipByNames(api.clips, want) || clipByNames(api.clips, ["idle"]);
@@ -26850,25 +26870,60 @@ void main() {
     mechanik: "NPC_Mechanikerin",
     koch: "NPC_Koch",
     friseur: "NPC_Friseurin",
-    it: "NPC_Buero",
-    garten: "NPC_Passant_Hoodie",
+    it: "NPC_IT",
+    garten: "NPC_Gaertnerin",
     labor: "NPC_Laborantin",
     lager: "NPC_Lagerist",
-    tischler: "NPC_Schlosser",
-    elektrik: "NPC_Schlosser",
+    tischler: "NPC_Tischler",
+    elektrik: "NPC_Elektriker",
     pflege: "NPC_Pfleger",
     polizei: "NPC_Polizist",
-    feuerwehr: "NPC_Bauarbeiter",
-    maurer: "NPC_Bauarbeiter",
-    maler: "NPC_Passantin_Pulli",
-    baecker: "NPC_Koch",
-    verkauf: "NPC_Reisende_Business",
+    feuerwehr: "NPC_Feuerwehr",
+    maurer: "NPC_Maurer",
+    maler: "NPC_Maler",
+    baecker: "NPC_Baecker",
+    verkauf: "NPC_Verkaeuferin",
     buero: "NPC_Buero",
     arzt: "NPC_Aerztin",
     schweiss: "NPC_Schlosser",
-    fahrer: "NPC_Reisender_Rucksack",
-    landwirt: "NPC_Passant_Senior",
-    kiga: "NPC_Passantin_Kleid"
+    fahrer: "NPC_Fahrer",
+    landwirt: "NPC_Landwirt",
+    kiga: "NPC_Erzieherin"
+  };
+  var JOB_ORDER = [
+    "mechanik", "koch", "friseur", "it", "garten", "labor", "lager", "tischler", "elektrik", "pflege",
+    "polizei", "feuerwehr", "maurer", "maler", "baecker", "verkauf", "buero", "arzt", "schweiss", "fahrer", "landwirt", "kiga"
+  ];
+  var JOB_LABEL = {
+    mechanik: "Mechanik", koch: "Koch", friseur: "Friseur", it: "IT", garten: "Garten",
+    labor: "Labor", lager: "Lager", tischler: "Tischler", elektrik: "Elektrik", pflege: "Pflege",
+    polizei: "Polizei", feuerwehr: "Feuerwehr", maurer: "Maurer", maler: "Maler", baecker: "B\xE4cker",
+    verkauf: "Verkauf", buero: "B\xFCro", arzt: "Arzt", schweiss: "Metall", fahrer: "Fahrer",
+    landwirt: "Landwirt", kiga: "Kindergarten"
+  };
+  var JOB_GEAR = {
+    mechanik: { prop: "Prop_Reifen", socket: "DEF-spine003", clip: "CarryWalk" },
+    koch: { prop: "Prop_Kochloeffel", socket: "Socket_Hand_R", clip: "Stir" },
+    friseur: { prop: "Prop_Schere", socket: "Socket_Hand_R", prop2: "Prop_Kamm", socket2: "Socket_Hand_L", clip: "Haircut" },
+    it: { clip: "Idle" },
+    garten: { prop: "Prop_Giesskanne", socket: "Socket_Hand_R", clip: "Idle" },
+    labor: { prop: "Prop_Pipette", socket: "Socket_Hand_R", prop2: "Prop_Reagenzglas", socket2: "Socket_Hand_L", clip: "Pipette" },
+    lager: { prop: "Prop_Kiste", socket: "DEF-spine003", clip: "CarryIdle" },
+    tischler: { prop: "Prop_Saege", socket: "Socket_Hand_R", clip: "Chop" },
+    elektrik: { prop: "Prop_Messgeraet", socket: "Socket_Hand_L", clip: "Idle" },
+    pflege: { prop: "Prop_Tablett", socket: "DEF-spine003", clip: "CarryWalk" },
+    polizei: { clip: "Idle" },
+    feuerwehr: { prop: "Prop_Feuerloescher", socket: "Socket_Hand_L", clip: "Idle" },
+    maurer: { prop: "Prop_Kelle", socket: "Socket_Hand_R", clip: "CrouchIdle" },
+    maler: { prop: "Prop_Farbroller", socket: "Socket_Hand_R", clip: "Stir" },
+    baecker: { prop: "Prop_Brot", socket: "Socket_Hand_R", clip: "Idle" },
+    verkauf: { prop: "Prop_Einkaufskorb", socket: "Socket_Hand_L", clip: "Idle" },
+    buero: { clip: "Idle" },
+    arzt: { clip: "Examine" },
+    schweiss: { prop: "Prop_Hammer", socket: "Socket_Hand_R", clip: "Hammer" },
+    fahrer: { clip: "Idle" },
+    landwirt: { clip: "Idle" },
+    kiga: { prop: "Prop_Ball", socket: "Socket_Hand_L", clip: "Talk" }
   };
   var PLAYERS = ["Spieler_A", "Spieler_B", "Spieler_C", "Spieler_D", "Spieler_E", "Spieler_F"];
   var NAMED = {
@@ -26879,7 +26934,7 @@ void main() {
     "#1f5fd6": "blau",
     "#8e44c9": "lila"
   };
-  var ONESHOT = /* @__PURE__ */ new Set(["Sit", "StandUp", "PickUp", "Interact", "KneelFix", "Cuff"]);
+  var ONESHOT = /* @__PURE__ */ new Set(["Sit", "StandUp", "PickUp", "Interact", "KneelFix", "Cuff", "PrisonerCuff"]);
   var ENV = [
     "BR_Box_Schlosserei",
     "BR_Box_Kueche",
@@ -27124,6 +27179,15 @@ void main() {
         if (cur && cur !== a) a.crossFadeFrom(cur, opts.fade == null ? 0.2 : opts.fade, false);
         a.play();
         cur = a;
+        if (opts.onDone) {
+          const h = (e) => {
+            if (e.action !== a) return;
+            mixer.removeEventListener("finished", h);
+            opts.onDone();
+          };
+          mixer.addEventListener("finished", h);
+        }
+        return a;
       };
     }
     function spawn(name, opts = {}) {
@@ -27264,15 +27328,15 @@ void main() {
     ],
     buero: [
       { fig: "NPC_Buero", clip: "Type", at: "Station_Schreibtisch_Sitz" },
-      { fig: "NPC_Buero", clip: "SitIdle", at: "Station_Schreibtisch2_Sitz" }
+      { fig: "NPC_IT", clip: "Type", at: "Station_Schreibtisch2_Sitz" }
     ],
     friseur: [
-      { fig: "NPC_Friseurin", clip: "Haircut", prop: "Prop_Schere", socket: "Socket_Hand_R", at: "Station_Stylist_1" },
+      { fig: "NPC_Friseurin", clip: "Haircut", prop: "Prop_Schere", socket: "Socket_Hand_R", prop2: "Prop_Kamm", socket2: "Socket_Hand_L", at: "Station_Stylist_1" },
       { fig: "NPC_Passantin_Kleid", clip: "SitIdle", at: "Kunde_Sitz_1" }
     ],
     baustelle: [
       { fig: "NPC_Bauarbeiter", clip: "Hammer", prop: "Prop_Hammer", socket: "Socket_Hand_R", at: "Station_Geruest", vfx: "spark" },
-      { fig: "NPC_Bauarbeiter", clip: "CarryIdle", at: "Station_Balken_Auf" }
+      { fig: "NPC_Bauarbeiter", clip: "CarryShoulderWalk", prop: "Prop_Balken", socket: "DEF-spine003", at: "Station_Balken_Auf" }
     ],
     krankenhaus: [
       { fig: "NPC_Aerztin", clip: "Examine", at: "Station_Tresen" },
@@ -27281,7 +27345,7 @@ void main() {
     ],
     autowerkstatt: [
       { fig: "NPC_Mechanikerin", clip: "KneelFix", prop: "Prop_Schraubenschluessel", socket: "Socket_Hand_R", at: "Station_Haube", vfx: "spark" },
-      { fig: "NPC_Mechanikerin", clip: "CarryIdle", at: "Station_Reifenstapel" }
+      { fig: "NPC_Mechanikerin", clip: "CarryWalk", prop: "Prop_Reifen", socket: "DEF-spine003", at: "Station_Reifenstapel" }
     ]
   };
   function webglAvailable() {
@@ -27536,7 +27600,10 @@ void main() {
         else if (pawn.mode === "arrest") stepArrest(pawn, dt);
         else if (pawn.mode === "release") stepRelease(pawn, dt);
         else if (pawn.mode === "cell" && pawn.slotPos) pawn.pos.set(pawn.slotPos.lx, TILE_Y, pawn.slotPos.lz);
-        const poseMode = pawn.mode === "cell" ? "prisonersit" : pawn.mode === "arrest" && pawn.phaseT >= 2.3 && pawn.phaseT < 6.1 ? "prisonerwalk" : pawn.mode === "arrest" && pawn.phaseT >= 1.4 ? "prisoneridle" : pawn.hop || pawn.mode === "release" ? "walk" : "idle";
+        const poseMode = pawn.mode === "cell" ? "prisonersit" : pawn.mode === "arrest" && pawn.phaseT >= 2.4 && pawn.phaseT < 6.1 ? "prisonerwalk" : pawn.mode === "arrest" && pawn.phaseT >= 1.4 ? "prisonercuff" : pawn.hop || pawn.mode === "release" ? "walk" : "idle";
+        if (pawn.mode === "arrest" || pawn.mode === "cell" || pawn.mode === "release") {
+          showCuffs(pawn, pawn.mode === "cell" || pawn.mode === "arrest" && pawn.phaseT >= 1.9);
+        }
         updateVisual(pawn.visual, poseMode, now / 1e3, dt, catalog);
         stepOfficer(pawn, poseMode, dt);
         pawn.visual.root.position.copy(pawn.pos);
@@ -27611,23 +27678,19 @@ void main() {
         pawn.pos.set(f.lx, TILE_Y, f.lz);
       } else if (t < 2.4) {
         driveCar(car, home, beside, 1);
-        pawn.pos.set(f.lx, TILE_Y, f.lz);
-        showCuffs(pawn, true);
-      } else if (t < 4.9) {
+      pawn.pos.set(f.lx, TILE_Y, f.lz);
+    } else if (t < 4.9) {
         const u = (t - 2.4) / 2.5;
         driveCar(car, beside, cellPark, u);
         if (car) pawn.pos.set(car.position.x - 0.95, TILE_Y, car.position.z + 0.15);
-        else pawn.pos.set(f.lx + (door.lx - f.lx) * u, TILE_Y, f.lz + (door.lz - f.lz) * u);
-        showCuffs(pawn, true);
-      } else if (t < 6.1) {
+      else pawn.pos.set(f.lx + (door.lx - f.lx) * u, TILE_Y, f.lz + (door.lz - f.lz) * u);
+    } else if (t < 6.1) {
         const u = (t - 4.9) / 1.2;
         driveCar(car, beside, cellPark, 1);
-        pawn.pos.set(door.lx + (seat.lx - door.lx) * u, TILE_Y, door.lz + (seat.lz - door.lz) * u);
-        showCuffs(pawn, true);
-      } else {
-        pawn.mode = "cell";
-        pawn.pos.set(seat.lx, TILE_Y, seat.lz);
-        showCuffs(pawn, true);
+      pawn.pos.set(door.lx + (seat.lx - door.lx) * u, TILE_Y, door.lz + (seat.lz - door.lz) * u);
+    } else {
+      pawn.mode = "cell";
+      pawn.pos.set(seat.lx, TILE_Y, seat.lz);
         if (car && car.userData.home) {
           car.position.copy(car.userData.home);
           car.rotation.y = 0;
@@ -27644,7 +27707,7 @@ void main() {
     }
     function stepOfficer(pawn, poseMode, dt) {
       if (!lib) return;
-      const escort = poseMode === "prisoneridle" || poseMode === "prisonerwalk";
+      const escort = poseMode === "prisonercuff" || poseMode === "prisoneridle" || poseMode === "prisonerwalk";
       if (escort && !pawn.officer) {
         pawn.officer = lib.spawn("NPC_Polizist", { lod: 1, outline: tier === "niedrig" ? 0 : 0.014, scale: FIG_SCALE });
         pawn.officer.root.scale.setScalar(1);
@@ -27660,11 +27723,11 @@ void main() {
       const dir = pawn.face.lengthSq() ? pawn.face.clone().normalize() : new Vector2(0, 1);
       pawn.officer.root.position.set(pawn.pos.x - dir.x * lead, pawn.pos.y, pawn.pos.z - dir.y * lead);
       pawn.officer.root.rotation.y = pawn.yaw;
-      const clip = poseMode === "prisonerwalk" ? "Lead" : "Cuff";
-      if (pawn.officer.mixer && pawn.officer.clip !== clip) {
-        pawn.officer.clip = clip;
-        pawn.officer.play(clip, { loop: clip === "Lead" });
-      }
+    const clip = poseMode === "prisonerwalk" ? "Lead" : "Cuff";
+    if (pawn.officer.mixer && pawn.officer.clip !== clip) {
+      pawn.officer.clip = clip;
+      pawn.officer.play(clip, { loop: clip === "Lead", fade: clip === "Cuff" ? 0.05 : 0.15 });
+    }
       if (pawn.officer.mixer) pawn.officer.mixer.update(dt || 0);
       if (pawn.officer.parentZone !== pawn.zone) {
         contentOf(pawn.zone).add(pawn.officer.root);
@@ -27734,6 +27797,8 @@ void main() {
       }
     }
     function applyShot() {
+      camera.fov = shot === "berufe" ? 48 : 40;
+      camera.updateProjectionMatrix();
       if (shot === "kueche") {
         const b = layout.buildings.find((x) => x.id === "kueche");
         const along = !b || b.alongX !== false;
@@ -27742,8 +27807,18 @@ void main() {
         _look.set(b.lx - (along ? 0.4 : 0), 1.15, b.lz);
       } else if (shot === "festnahme") {
         const f = layout.points.find((p) => p.zone === 2 && p.type3d === "finanzpolizei") || layout.points.find((p) => p.zone === 2);
-        _desired.set(f.lx + 2.4, 4.4, f.lz + 6.2);
-        _look.set(f.lx + 0.3, 1.05, f.lz + 0.2);
+        _desired.set(f.lx + 1.7, 1.48, f.lz - 0.15);
+        _look.set(f.lx + 0.02, 1.02, f.lz - 0.22);
+      } else if (shot === "balken") {
+        const carrier = npcs.find((n) => n.clip === "CarryShoulderWalk");
+        const b = layout.buildings.find((x) => x.id === "baustelle");
+        const x = carrier ? carrier.root.position.x : b ? b.lx : 20;
+        const z = carrier ? carrier.root.position.z : b ? b.lz : 12;
+        _desired.set(x + 1.9, 1.85, z + 2.15);
+        _look.set(x, 1.15, z + 0.1);
+      } else if (shot === "berufe") {
+        _desired.set(11.65, 6.1, 21.2);
+        _look.set(11.65, 1.05, 5.2);
       } else if (shot === "park") {
         const p = contentOf(2).userData.park || { x: 20, z: 6.2 };
         _desired.set(p.x - 1, 8.2, p.z + 11);
@@ -27766,24 +27841,75 @@ void main() {
         car.rotation.y = Math.PI * 0.5;
       }
       if (!f || !lib || content.userData.demoMixers) return;
+      const lead = 0.35 * FIG_SCALE;
       const player = lib.spawn("Spieler_A", { lod: 0, color: "#E6197E", outline: 0.016, scale: FIG_SCALE });
       player.root.position.set(f.lx, TILE_Y, f.lz);
       player.root.rotation.y = 0;
       const cop = lib.spawn("NPC_Polizist", { lod: 1, outline: 0.016, scale: FIG_SCALE });
-      cop.root.position.set(f.lx, TILE_Y, f.lz + 0.62);
-      cop.root.rotation.y = Math.PI;
+      cop.root.position.set(f.lx, TILE_Y, f.lz - lead);
+      cop.root.rotation.y = 0;
       content.add(player.root, cop.root);
       content.userData.demoMixers = [player, cop];
       player.ready.then(() => {
-        player.play("PrisonerIdle");
-        if (player.mixer) player.mixer.update(0.8);
         const cuffs = lib.attachProp(player.model, "Prop_Handschellen", "Socket_Hand_R");
+        if (cuffs) cuffs.visible = false;
+        player.play("PrisonerCuff");
+        if (player.mixer) player.mixer.update(0.65);
         if (cuffs) cuffs.visible = true;
       });
       cop.ready.then(() => {
         cop.play("Cuff");
-        if (cop.mixer) cop.mixer.update(0.62);
+        if (cop.mixer) cop.mixer.update(0.65);
       });
+    }
+    function clearBerufe() {
+      const row = scene.getObjectByName("BerufeReihe");
+      if (row) row.removeFromParent();
+    }
+    function poseBerufe() {
+      clearBerufe();
+      for (const k of [1, 2, 3, 4]) pages[k].visible = false;
+      const g = new Group();
+      g.name = "BerufeReihe";
+      const ground = new Mesh(
+        new PlaneGeometry(28, 16),
+        new MeshToonMaterial({ color: 9424730, gradientMap: lib.mats.gradient })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(12, 0, 6);
+      g.add(ground);
+      const actors = [];
+      JOB_ORDER.forEach((id, i) => {
+        const gear = JOB_GEAR[id] || {};
+        const spawned = lib.spawn(JOB_MODEL[id], { lod: 1, outline: 0.016, scale: FIG_SCALE });
+        const col = i % 11;
+        const row = Math.floor(i / 11);
+        spawned.root.position.set(2.4 + col * 1.85, 0, 3.1 + row * 4.3);
+        spawned.root.rotation.y = 0;
+        const tag = makeNameSprite(JOB_LABEL[id] || id);
+        tag.scale.set(2.4, 0.62, 1);
+        tag.position.y = 2.2;
+        spawned.root.add(tag);
+        spawned.ready.then(() => {
+          if (gear.prop) lib.attachProp(spawned.model, gear.prop, gear.socket || "Socket_Hand_R");
+          if (gear.prop2) lib.attachProp(spawned.model, gear.prop2, gear.socket2 || "Socket_Hand_L");
+          spawned.play(gear.clip || "Idle", { loop: true });
+          if (spawned.mixer) spawned.mixer.update(0.45);
+        });
+        g.add(spawned.root);
+        actors.push(spawned);
+      });
+      g.userData.actors = actors;
+      scene.add(g);
+    }
+    function pendingActors() {
+      const waits = [];
+      const demo = contentOf(active).userData.demoMixers;
+      if (demo) for (const d of demo) if (d.ready) waits.push(d.ready);
+      for (const n of npcs) if (n.spawned && n.spawned.ready) waits.push(n.spawned.ready);
+      const row = scene.getObjectByName("BerufeReihe");
+      if (row && row.userData.actors) for (const a of row.userData.actors) if (a.ready) waits.push(a.ready);
+      return waits;
     }
     function placeBlobs() {
       const mesh = ensureBlobs();
@@ -27915,6 +28041,7 @@ void main() {
       spawned.root.quaternion.copy(spot.q).multiply(Y180);
       spawned.ready.then(() => {
         if (job.prop) lib.attachProp(spawned.model, job.prop, job.socket || "Socket_Hand_R");
+        if (job.prop2) lib.attachProp(spawned.model, job.prop2, job.socket2 || "Socket_Hand_L");
         spawned.play(job.clip, { loop: job.clip === "KneelFix" });
       });
       return { root: spawned.root, spawned, clip: job.clip, vfx: job.vfx || null, loop: null };
@@ -28143,9 +28270,17 @@ void main() {
       },
       frameShot(kind) {
         shot = kind || "uebersicht";
-        const zone = { uebersicht: 1, kueche: 1, festnahme: 2, park: 2, bahnhof: 4 }[shot] || 1;
+        if (shot !== "berufe") clearBerufe();
+        const zone = {
+          uebersicht: 1, kueche: 1, festnahme: 2, park: 2, bahnhof: 4, balken: 3, berufe: 1,
+          zone1: 1, zone2: 2, zone3: 3, zone4: 4
+        }[shot] || 1;
         if (!flip) showOnly(zone);
         if (shot === "festnahme") poseArrestStill();
+        if (shot === "berufe") {
+          if (!scene.getObjectByName("BerufeReihe")) poseBerufe();
+          else for (const k of [1, 2, 3, 4]) pages[k].visible = false;
+        }
         if (shot === "bahnhof") {
           const content = contentOf(4);
           content.userData.holdTrain = true;
@@ -28168,6 +28303,9 @@ void main() {
           slides: layout.slides.map((s) => s.field + "\u2192" + s.to).join(" "),
           fp: layout.prisons.map((j) => "Z" + j.zone + ":" + j.fields.join("+")).join(" ")
         };
+      },
+      settle() {
+        return Promise.all(pendingActors());
       }
     };
   }

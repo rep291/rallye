@@ -307,6 +307,7 @@ const CLIP_FOR = {
   prisonersit: ['prisonersit', 'sitidle'],
   prisonerwalk: ['prisonerwalk', 'walk'],
   prisoneridle: ['prisoneridle', 'idle'],
+  prisonercuff: ['prisonercuff', 'prisoneridle'],
   cheer: ['victory', 'wave', 'dance'],
   punch: ['hammer'],
   hammer: ['hammer'],
@@ -316,10 +317,29 @@ const CLIP_FOR = {
   cuff: ['cuff'],
   lead: ['lead', 'walk'],
 };
-const ONCE = new Set(['sit', 'standup', 'pickup', 'interact', 'kneelfix', 'cuff']);
+const ONCE = new Set(['sit', 'standup', 'pickup', 'interact', 'kneelfix', 'cuff', 'prisonercuff']);
+const CLIP_NAME = {
+  walk: 'Walk', run: 'Run', sit: 'SitIdle', prisonersit: 'PrisonerSit',
+  prisonerwalk: 'PrisonerWalk', prisoneridle: 'PrisonerIdle', prisonercuff: 'PrisonerCuff',
+  cheer: 'Victory', punch: 'Hammer', hammer: 'Hammer', pickup: 'PickUp',
+  carry: 'CarryWalk', idle: 'Idle', cuff: 'Cuff', lead: 'Lead',
+};
 
 export function updateVisual(api, mode, t, dt) {
   if (!api) return;
+  if (api.play && api.mixer) {
+    const key = String(mode || 'idle').toLowerCase();
+    const name = CLIP_NAME[key] || 'Idle';
+    if (api.current !== name) {
+      api.current = name;
+      if (api.action) { api.action.fadeOut(0.12); api.action = null; }
+      const once = ONCE.has(key);
+      api.play(name, { fade: once ? 0.05 : 0.15, loop: !once });
+    }
+    api.mixer.update(dt || 0);
+    if (api.placeholder) api.placeholder.visible = false;
+    return;
+  }
   if (api.mixer && api.model) {
     const want = CLIP_FOR[mode] || [String(mode || 'idle').toLowerCase(), 'idle'];
     const clip = clipByNames(api.clips, want) || clipByNames(api.clips, ['idle']);
