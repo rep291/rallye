@@ -43,6 +43,10 @@ Mit dem `Dockerfile` läuft es auch bei anderen Docker-Hostern. Stand 2026:
 - **Fly.io** hat für neue Konten nur eine kurze Testphase.
 - **Railway** bietet nur 5 $ Testguthaben und danach 1 $ pro Monat.
 
+## Neu in V4: Feldbelegung wie im 3D-Brett
+- Verbindlich ist die 3D-Feldliste (`_art/3d_stil/Feldliste_3D.csv`): 12 Rutschen (neu 21→8, 25→14, 43→31, 49→36, 74→61, 97→83) und 7 Finanzpolizei-Felder (neu 53, 72, 78, 94; dazu 33, 62, 86).
+- Das 2D-Brett ist neu gezeichnet. Rutschen mit weit entferntem Ziel haben eine kurze Rutsche mit Schild „8←21“ und am Zielfeld einen Ankunftspfeil.
+
 ## Neu in V3: Regeln und Brett
 - **Finanzpolizei:** Mit einer 6 frei – dann sofort noch einmal würfeln und mit diesem Wurf ziehen (nicht mehr fix 6 Felder). Handy zeigt „Noch einmal würfeln!“.
 - **Ins ZIEL nur mit der genauen Zahl** (Standard, in ⚙ Einstellungen abschaltbar). Zu hoher Wurf: Figur bleibt stehen, Beamer und Handy melden „zu viel – fürs ZIEL brauchst du genau N“. Gilt auch für Karten/Bewertungen und im Zeitlimit-Modus.

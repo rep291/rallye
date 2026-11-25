@@ -31,6 +31,20 @@ const H = { S: null };
   await idle(); ok(H.S.players[H.S.turn].id === A.id && me(A.id).again, 'Anna würfelt sofort noch einmal (Handy: „Noch einmal würfeln!“)');
   await roll(A, 3); await idle(); ok(me(A.id).pos === 36 && H.S.players[H.S.turn].id === B.id, 'zieht mit dem neuen Wurf (3) auf 36, dann Ben');
   ok(H.S.log.some(l => /frei! Jetzt noch einmal würfeln/.test(l.msg)), 'Log-Eintrag Finanzpolizei');
+  console.log('V4) Alle Rutschen und neue Finanzpolizei-Felder');
+  const expectedSlides = { 15: 3, 21: 8, 25: 14, 28: 12, 43: 31, 49: 36, 56: 44, 70: 58, 74: 61, 80: 67, 97: 83, 99: 87 };
+  ok(JSON.stringify(Object.fromEntries(F.filter(f => f.type === 'rutsche').map(f => [f.id, f.to]))) === JSON.stringify(expectedSlides), 'alle 12 Rutschen laut 3D-Feldliste');
+  ok(F.filter(f => f.type === 'finanzpolizei').map(f => f.id).join() === '33,53,62,72,78,86,94', 'alle 7 Finanzpolizei-Felder laut 3D-Feldliste');
+  for (const [from, to] of Object.entries(expectedSlides)) {
+    await turnTo(A); h.emit('test:setPos', A.id, +from - 1, false); await sleep(40); await roll(A, 1); await idle();
+    ok(me(A.id).pos === to, `Rutsche ${from} → ${to}: Server bewegt korrekt`);
+  }
+  for (const n of [53, 72, 78, 94]) {
+    await turnTo(A); h.emit('test:setPos', A.id, n - 1, false); await sleep(40); await roll(A, 1); await idle();
+    ok(me(A.id).pos === n && me(A.id).jail, `Feld ${n}: Finanzpolizei sperrt`);
+    await turnTo(A); await roll(A, 6); await idle();
+    ok(!me(A.id).jail && me(A.id).pos === n && me(A.id).again && H.S.players[H.S.turn].id === A.id, `Feld ${n}: 6 befreit, gleicher Spieler wuerfelt erneut`);
+  }
   console.log('2) ZIEL nur mit exakter Zahl');
   await turnTo(A); h.emit('test:setPos', A.id, 98, false); await sleep(60);
   H.seen = []; await roll(A, 5); await idle();

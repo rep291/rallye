@@ -12,14 +12,14 @@ const URL = 'http://localhost:3300', OUT = __dirname + '/../screens/'; const sle
   for (const n of ['Anna', 'Ben', 'Cem']) { const c = io(URL, { forceNew: true }); await new Promise(r => c.emit('join', { name: n, room: code }, x => { ids.push(x.id); r(); })); }
   await sleep(300); h.emit('host:start'); await sleep(300);
   const svg = await host.$('#board');
-  for (const pos of [0, 1, 33, 50, 99, 100, 101]) {
+  for (const pos of [0, 1, 21, 25, 33, 43, 49, 50, 53, 72, 74, 78, 94, 97, 99, 100, 101]) {
     h.emit('test:setPos', ids[0], pos); h.emit('test:setPos', ids[1], pos); h.emit('test:setPos', ids[2], pos === 101 ? 101 : Math.min(100, pos + 1));
     await sleep(2500);
     const f = await host.evaluate(p => board.fields[p], pos); const bb = await svg.boundingBox(); const k = bb.width / 865;
     const clip = { x: Math.max(0, bb.x + (f.x - 45) * k), y: Math.max(0, bb.y + (f.y - 35) * k), width: 90 * k, height: 70 * k };
     await host.screenshot({ path: OUT + `figur_feld_${String(pos).padStart(3, '0')}.png`, clip });
   }
-  h.emit('test:setPos', ids[0], 33); h.emit('test:setPos', ids[1], 56); h.emit('test:setPos', ids[2], 86); await sleep(2500);
+  h.emit('test:setPos', ids[0], 53, true); h.emit('test:setPos', ids[1], 72, true); h.emit('test:setPos', ids[2], 94, true); await sleep(2500);
   await (await b.newPage()).close();
   await host.goto(URL + '/host'); await sleep(1500);
   await host.screenshot({ path: OUT + '12_host_brett_figuren.png' });

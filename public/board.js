@@ -63,10 +63,10 @@ window.BoardView = function (svg, board) {
   function restXY(pos, players, id) {
     const f = F[pos];
     if (!f) return [0, 0];
-    const me = players.find(p => p.id === id), j = me ? inJ(me) : false;
+    const me = players.find(p => p.id === id), j = me ? inJ(me) && !!JAIL[pos] : false; // nur Gefängnis, wenn pos selbst ein FP-Feld ist
     const here = players.filter(p => tgt(p) === pos && inJ(p) === j);
     const k = Math.max(0, here.findIndex(p => p.id === id));
-    if (j) { const J = JAIL[pos] || f, o = here.length < 2 ? 0 : (k - (here.length - 1) / 2) * 7; return [J.x + o, J.y - 1 + (k % 2) * 2]; }
+    if (j) { const J = JAIL[pos], o = here.length < 2 ? 0 : (k - (here.length - 1) / 2) * 7; return [J.x + o, J.y - 1 + (k % 2) * 2]; }
     const o = here.length < 2 ? [0, 0] : LAY[here.length] ? LAY[here.length][k] : offset(k);
     return [f.x + o[0], f.y + o[1]];
   }
