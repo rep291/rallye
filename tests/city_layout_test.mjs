@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { buildLayout, kartenStimmung } from '../public/city3d/layout.js';
+import { buildLayout, kartenStimmung, zoneOf, visualType } from '../public/city3d/layout.js';
 
 const board = JSON.parse(fs.readFileSync(new URL('../config/board.json', import.meta.url), 'utf8'));
 const layout = buildLayout(board.fields);
@@ -12,15 +12,18 @@ for (const n of ['Schlosserei', 'Restaurantküche', 'Labor', 'Lager', 'Büro', '
   assert.ok(names.includes(n), n);
 }
 
+const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+for (const p of layout.points) counts[p.zone]++;
+assert.deepEqual(counts, { 1: 26, 2: 25, 3: 25, 4: 26 });
+
+assert.equal(layout.prisons.length, 3, 'eine Zelle in Zone 2, 3 und 4');
 const fp = board.fields.filter(f => f.type === 'finanzpolizei').map(f => f.id);
-assert.equal(layout.prisons.length, fp.length);
 for (const id of fp) {
   const pt = layout.points.find(p => p.id === id);
-  assert.ok(pt, 'Feld ' + id);
-  assert.equal(pt.building, null, 'Finanzpolizei liegt auf der Straße, Feld ' + id);
-  const prison = layout.prisons.find(r => r.fieldIndex === pt.index);
-  assert.ok(prison);
-  assert.ok(Math.hypot(prison.x - pt.x, prison.z - pt.z) > 4, 'Zelle neben dem Feld');
+  assert.equal(pt.building, null, 'Finanzpolizei liegt nicht in einer Box, Feld ' + id);
+  const prison = layout.prisons.find(r => r.zone === zoneOf(id));
+  assert.ok(prison, 'Zelle der Zone');
+  assert.ok(Math.hypot(prison.x - pt.x, prison.z - pt.z) > 4, 'Zelle neben dem Feld ' + id);
 }
 
 for (let i = 0; i < layout.buildings.length; i++) {
@@ -37,6 +40,12 @@ for (let i = 0; i < layout.buildings.length; i++) {
 const slides = board.fields.filter(f => f.type === 'rutsche');
 assert.equal(layout.slides.length, slides.length);
 for (const s of layout.slides) assert.ok(s.indices.includes(s.field) && s.indices.includes(s.to));
+
+assert.equal(visualType(100), 'frage');
+assert.equal(visualType(99), 'rutsche');
+assert.equal(visualType(21), 'rutsche');
+assert.equal(visualType(53), 'finanzpolizei');
+assert.equal(layout.points.find(p => p.id === 99).slideTo, 87);
 
 assert.equal(kartenStimmung('3 Felder vor'), 'gut');
 assert.equal(kartenStimmung('2 Felder zurück'), 'schlecht');

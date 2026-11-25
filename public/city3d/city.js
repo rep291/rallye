@@ -1,102 +1,130 @@
-// 3D-Stadt auf der Beamer-Seite. Spiellogik bleibt auf dem Server;
-// hier wird nur der öffentliche Spielstand gezeigt.
-//
-// Zielhardware: Kurslaptop mit AMD Ryzen 5 7530U (Radeon-Vega, 7 CUs),
-// 16 GB RAM, Beamer 1080p. „Mittel“ ist dafür ausgelegt (30+ FPS):
-// eine Schattenkarte 1024 mit leichtem PCF, instanzierte Passanten
-// und Deko, pixelRatio höchstens 1 (Hoch höchstens 1.25).
-
+// 3D-Flipchart. Nur die Zone des aktiven Spielers wird gezeichnet.
+// Spiellogik bleibt auf dem Server, hier ist nur die Darstellung.
 import * as THREE from 'three';
-import { buildLayout, TILE_Y, yawFacing, kartenStimmung } from './layout.js';
-import { buildCity, stepPeds } from './scenery.js';
-import { loadWorldAssets, dressWorld, stepCrowd, applyDensity } from './assets.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
-  createPlayerVisual, updateVisual, setCuffs, createLoader, makeNameSprite, makeTextPlane, pose, equipFromLibrary,
+  buildLayout, TILE_Y, yawFacing, zoneOf, ZONE_NAME, PAGE,
+} from './layout.js';
+import { buildZone, applyDecor } from './zonebuild.js';
+import {
+  createPlayerVisual, updateVisual, createLoader, makeNameSprite, equipFromLibrary,
+  paintCharacter,
 } from './figures.js';
 
-// dpr ist die Obergrenze vor devicePixelRatio. Schatten 0 = aus, sonst Kantenlänge der Karte.
-// decor: Anteil der instanzierten Bäume, Häuser und Laternen.
 const PRESETS = {
-  niedrig: { dpr: 0.75, peds: 3, npcs: 1, shadows: 0, decor: 0.35, shadowRadius: 0 },
-  mittel: { dpr: 1, peds: 8, npcs: 2, shadows: 1024, decor: 1, shadowRadius: 2.5 },
-  hoch: { dpr: 1.25, peds: 12, npcs: 2, shadows: 1024, decor: 1, shadowRadius: 3 },
+  niedrig: { dpr: 0.75, npcs: 1, fill: 0.35, decor: 0.4 },
+  mittel: { dpr: 1, npcs: 2, fill: 1, decor: 1 },
+  hoch: { dpr: 1.25, npcs: 3, fill: 1, decor: 1 },
 };
 const DPR_CAP = 1.25;
+const Q = '/city3d/models/quaternius/';
+const CHAR_FILES = {
+  Casual_Male: Q + 'Casual_Male.glb',
+  Casual_Female: Q + 'Casual_Female.glb',
+  Casual2_Male: Q + 'Casual2_Male.glb',
+  Worker_Male: Q + 'Worker_Male.glb',
+  Worker_Female: Q + 'Worker_Female.glb',
+  Chef_Male: Q + 'Chef_Male.glb',
+  Chef_Female: Q + 'Chef_Female.glb',
+  Doctor_Male_Young: Q + 'Doctor_Male_Young.glb',
+  Doctor_Female_Young: Q + 'Doctor_Female_Young.glb',
+  Suit_Male: Q + 'Suit_Male.glb',
+};
 
 const TYPE_DE = {
   start: 'Start', ziel: 'Ziel', normal: 'Weg', aktion: 'Aktion',
   frage: 'Frage', rutsche: 'Rutsche', finanzpolizei: 'Finanzpolizei',
 };
 
-const _a = new THREE.Vector3();
-const _b = new THREE.Vector3();
-const _c = new THREE.Vector3();
-const _look = new THREE.Vector3();
-const _desired = new THREE.Vector3();
-const _camLook = new THREE.Vector3();
+const SHOP_JOBS = {
+  schlosserei: [
+    { model: 'Worker_Male', tint: '#3d5a8a', steps: [['walk', 1.3], ['punch', 1.2], ['wait', 1.1], ['pickup', 0.8]] },
+    { model: 'Worker_Female', tint: '#e08a2c', steps: [['walk', 1.2], ['pickup', 0.8], ['carry', 1.3], ['wait', 1.0]] },
+  ],
+  kueche: [
+    { model: 'Chef_Male', tint: '#f4f7fb', steps: [['walk', 1.1], ['wait', 1.6], ['pickup', 0.8], ['walk', 1.0]] },
+    { model: 'Chef_Female', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 1.8], ['pickup', 0.7]] },
+  ],
+  labor: [
+    { model: 'Doctor_Female_Young', tint: '#e7eef8', steps: [['walk', 1.2], ['wait', 1.8], ['pickup', 0.8]] },
+    { model: 'Doctor_Male_Young', tint: '#e7eef8', steps: [['walk', 1.3], ['wait', 1.6], ['walk', 1.1]] },
+  ],
+  lager: [
+    { model: 'Worker_Female', tint: '#c48a2a', steps: [['walk', 1.1], ['pickup', 0.8], ['carry', 1.4], ['wait', 1.0]] },
+    { model: 'Casual2_Male', tint: '#3d7ff2', steps: [['walk', 1.2], ['wait', 1.8], ['walk', 1.0]] },
+  ],
+  buero: [
+    { model: 'Suit_Male', tint: '#2c4d86', steps: [['sit', 4.5], ['walk', 1.2], ['pickup', 0.8]] },
+    { model: 'Casual_Female', tint: '#4363d8', steps: [['walk', 1.3], ['wait', 2.2], ['walk', 1.1]] },
+  ],
+  friseur: [
+    { model: 'Chef_Female', tint: '#c45b8a', steps: [['walk', 1.2], ['wait', 2.0], ['punch', 0.6], ['wait', 1.2]] },
+    { model: 'Casual_Female', tint: '#f6e7ee', steps: [['sit', 8]] },
+  ],
+  baustelle: [
+    { model: 'Worker_Male', tint: '#e0b04a', steps: [['walk', 1.2], ['punch', 1.4], ['wait', 1.0]] },
+    { model: 'Worker_Female', tint: '#f2c14a', steps: [['pickup', 0.8], ['carry', 1.4], ['wait', 1.1]] },
+  ],
+  krankenhaus: [
+    { model: 'Doctor_Female_Young', tint: '#f7f7f5', steps: [['walk', 1.3], ['wait', 1.8], ['pickup', 0.8], ['walk', 1.1]] },
+    { model: 'Doctor_Male_Young', tint: '#f4f7fb', steps: [['walk', 1.2], ['wait', 2.0], ['walk', 1.2]] },
+  ],
+  autowerkstatt: [
+    { model: 'Worker_Male', tint: '#1f7a45', steps: [['walk', 1.2], ['wait', 1.6], ['punch', 1.2], ['wait', 0.8]] },
+    { model: 'Casual2_Male', tint: '#3d7ff2', steps: [['pickup', 0.8], ['carry', 1.5], ['wait', 1.2]] },
+  ],
+};
 
 export function webglAvailable() {
   try {
     const c = document.createElement('canvas');
-    return !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
-  } catch (e) {
-    return false;
-  }
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch { return false; }
+}
+
+function tierName(t) {
+  return t === 'niedrig' ? 'Niedrig' : t === 'hoch' ? 'Hoch' : 'Mittel';
+}
+
+function startTier() {
+  const mem = navigator.deviceMemory || 8;
+  const cores = navigator.hardwareConcurrency || 8;
+  if (cores <= 2 || mem <= 2) return 'niedrig';
+  return 'mittel';
 }
 
 export function mountCity(canvas, board, opts = {}) {
   if (!webglAvailable()) throw new Error('WebGL2 fehlt');
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: false,
-    alpha: false,
-    powerPreference: 'high-performance',
-    stencil: false,
-  });
-  renderer.setClearColor(0x8ec8ee, 1);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setClearColor(0xe4f1fa, 1);
   renderer.shadowMap.enabled = false;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
-
   const scene = new THREE.Scene();
-  scene.background = skyGradient();
-  scene.fog = new THREE.Fog(0xf3e2c4, 38, 168);
-  const hemi = new THREE.HemisphereLight(0xfff4dd, 0x6fbf62, 0.95);
-  const sun = new THREE.DirectionalLight(0xfff1d6, 1.25);
-  sun.position.set(30, 48, 18);
-  sun.target.position.set(0, 0, 0);
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.bias = -0.001;
-  sun.shadow.normalBias = 0.04;
-  sun.shadow.radius = 1.5;
-  sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 80;
-  scene.add(hemi, sun, sun.target);
-
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.15, 480);
-  const loader = createLoader();
-  let catalog = emptyCatalog();
-  fetch('/city3d/figures.json').then(r => r.ok ? r.json() : null).then(j => {
-    if (j) catalog = Object.assign(emptyCatalog(), j);
-    for (const pawn of players.values()) pawn.visual.load(catalog, loader);
-  }).catch(() => {});
+  scene.background = new THREE.Color(0xe4f1fa);
+  scene.fog = new THREE.Fog(0xe4f1fa, 28, 78);
+  scene.add(new THREE.HemisphereLight(0xe4f1fa, 0x8fcf5a, 0.85));
+  const sun = new THREE.DirectionalLight(0xfff6ea, 1.2);
+  sun.position.set(14, 24, 10);
+  scene.add(sun);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.12, 180);
 
   let layout = buildLayout(board.fields || []);
-  let built = buildCity(scene, layout, board);
-  let worldLib = null;
-  function applyWorld() {
-    if (!worldLib) return;
-    dressWorld(scene, layout, worldLib, built);
-    for (const pawn of players.values()) equipFromLibrary(pawn.visual, worldLib, pawn);
+  const pages = {};
+  for (const z of [1, 2, 3, 4]) {
+    pages[z] = buildZone(layout, z);
+    scene.add(pages[z]);
   }
-  loadWorldAssets(loader).then(lib => { worldLib = lib; applyWorld(); }).catch(err => console.warn(err));
+
   const players = new Map();
+  const pins = [];
+  const npcs = [];
+  let chars = null;
   let state = null;
-  let stepMs = 260;
+  let active = 1;
+  let flip = null;
   let running = false;
   let raf = 0;
   let fallen = false;
-  let errors = 0;
   let qualityMode = opts.quality || 'auto';
   let tier = qualityMode === 'auto' ? startTier() : (PRESETS[qualityMode] ? qualityMode : 'mittel');
   let lowSince = 0;
@@ -106,101 +134,539 @@ export function mountCity(canvas, board, opts = {}) {
   let fpsFrames = 0;
   let fpsStamp = performance.now();
   let last = performance.now();
-  let pendingKey = '';
-  let rollKey = '';
-  let partyAt = 0;
-  let camReady = false;
-  const camPos = new THREE.Vector3();
-  const lookPos = new THREE.Vector3();
+  let slideSeq = '';
+  const loader = createLoader();
+  const catalog = { scaleToHeight: 1.7, clips: { idle: ['idle'], walk: ['walk'], sit: ['sitdown'], cheer: ['victory'] } };
+  const camPos = new THREE.Vector3(8, 16, 22);
+  const lookPos = new THREE.Vector3(PAGE.w / 2, 0, PAGE.d / 2);
+  const _desired = new THREE.Vector3();
+  const _look = new THREE.Vector3();
+  const _wp = new THREE.Vector3();
 
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.55, 0.045, 6, 18),
-    new THREE.MeshBasicMaterial({ color: 0xffd400 }),
-  );
-  ring.rotation.x = Math.PI / 2;
-  ring.visible = false;
-  scene.add(ring);
+  loadChars(loader).then(lib => { chars = lib; for (const p of players.values()) dress(p); refreshNpcs(); }).catch(err => console.warn(err));
 
-  const card = makeTextPlane(' ', { w: 640, h: 360, bg: '#10172a', fg: '#ffffff', pw: 2.8, ph: 1.58, font: 36, stripe: '#3d7ff2' });
-  card.visible = false;
-  scene.add(card);
-  const cardCtx = card.userData.texture.image.getContext('2d');
-
-  const dice = makeNameSprite(' ');
-  dice.visible = false;
-  dice.scale.set(1.1, 0.55, 1);
-  scene.add(dice);
-  let diceUntil = 0;
-
-  const confetti = makeConfetti(scene);
-  const rain = makeRain(scene);
-  let rainUntil = 0;
-  let celebrate = false;
-
+  showOnly(1);
   applyTier();
 
-  canvas.addEventListener('webglcontextlost', (e) => {
-    e.preventDefault();
-    fallback('WebGL wurde beendet. Es wird das 2D-Brett gezeigt.');
-  });
+  function contentOf(z) { return pages[z].userData.content; }
 
-  const ro = new ResizeObserver(() => resize());
-  if (canvas.parentElement) ro.observe(canvas.parentElement);
-  resize();
+  function showOnly(z) {
+    for (const k of [1, 2, 3, 4]) pages[k].visible = k === z;
+    active = z;
+    refreshNpcs();
+  }
+
+  function localPoint(id) {
+    return layout.points.find(p => p.id === id) || layout.points[0];
+  }
+
+  function syncPlayers() {
+    const list = (state && state.players) || [];
+    const seen = new Set();
+    for (const p of list) {
+      seen.add(p.id);
+      let pawn = players.get(p.id);
+      if (!pawn) {
+        const visual = createPlayerVisual(p, catalog, loader);
+        const name = makeNameSprite(p.name);
+        visual.root.add(name);
+        pawn = {
+          id: p.id, visual, name, index: p.pos | 0, target: p.pos | 0,
+          wantJail: !!p.jail, mode: 'free', pos: new THREE.Vector3(),
+          face: new THREE.Vector2(0, 1), yaw: 0, hop: null, arrestField: null,
+          slot: -1, color: p.color, figure: p.figure,
+        };
+        players.set(p.id, pawn);
+        placeImmediate(pawn, pawn.index, !!p.jail);
+        dress(pawn);
+      }
+      if (pawn.color !== p.color || pawn.figure !== p.figure) {
+        pawn.color = p.color;
+        pawn.figure = p.figure;
+        dress(pawn);
+      }
+      if (pawn.name.userData.label !== p.name) {
+        pawn.name.userData.label = p.name;
+      }
+      const nextJail = !!p.jail;
+      const nextTarget = p.pos | 0;
+      if (nextJail && !pawn.wantJail) beginArrest(pawn, nextTarget);
+      if (!nextJail && pawn.wantJail) beginRelease(pawn);
+      pawn.wantJail = nextJail;
+      pawn.target = nextTarget;
+    }
+    for (const [id, pawn] of players) {
+      if (seen.has(id)) continue;
+      pawn.visual.root.removeFromParent();
+      players.delete(id);
+    }
+  }
+
+  function dress(pawn) {
+    const player = { id: pawn.id, figure: pawn.figure, color: pawn.color || '#E6197E', name: '' };
+    if (chars) equipFromLibrary(pawn.visual, { chars }, player);
+  }
+
+  function placeImmediate(pawn, id, jailed) {
+    const f = localPoint(id);
+    pawn.index = f.id;
+    if (jailed) {
+      const jail = jailFor(f.zone);
+      const slot = takeSlot(pawn, jail);
+      pawn.mode = 'cell';
+      pawn.arrestField = f.id;
+      pawn.pos.set(slot.lx, TILE_Y, slot.lz);
+    } else {
+      pawn.mode = 'free';
+      pawn.pos.set(f.lx, TILE_Y, f.lz);
+    }
+    parentTo(pawn, f.zone);
+    pawn.visual.root.position.copy(pawn.pos);
+  }
+
+  function parentTo(pawn, zone) {
+    const content = contentOf(zone);
+    if (pawn.visual.root.parent !== content) content.add(pawn.visual.root);
+    pawn.zone = zone;
+  }
+
+  function jailFor(zone) {
+    return layout.prisons.find(j => j.zone === zone) || null;
+  }
+
+  function takeSlot(pawn, jail) {
+    if (!jail) return { lx: 0, lz: 0 };
+    const used = new Set();
+    for (const other of players.values()) if (other !== pawn && other.mode === 'cell' && other.zone === jail.zone && other.slot >= 0) used.add(other.slot);
+    let slot = 0;
+    while (used.has(slot) && slot < jail.slots.length - 1) slot++;
+    pawn.slot = slot;
+    return jail.slots[slot];
+  }
+
+  function beginArrest(pawn, fieldId) {
+    const f = localPoint(fieldId);
+    pawn.arrestField = f.id;
+    pawn.mode = 'arrest';
+    pawn.phaseT = 0;
+    pawn.phase = 'fetch';
+    const jail = jailFor(f.zone);
+    pawn.jail = jail;
+    pawn.slotPos = takeSlot(pawn, jail);
+    parentTo(pawn, f.zone);
+  }
+
+  function beginRelease(pawn) {
+    pawn.mode = 'release';
+    pawn.phaseT = 0;
+    pawn.phase = 'out';
+  }
+
+  function activeId() {
+    if (!state || state.phase !== 'playing' || !state.players) return null;
+    const cur = state.players[state.turn];
+    return cur ? cur.id : null;
+  }
+
+  function followPawn() {
+    const id = activeId();
+    if (id && players.get(id)) return players.get(id);
+    return players.values().next().value || null;
+  }
+
+  function stepPlayers(dt, now) {
+    const focus = followPawn();
+    for (const pawn of players.values()) {
+      if (pawn.mode === 'free') stepFree(pawn, dt, now);
+      else if (pawn.mode === 'arrest') stepArrest(pawn, dt);
+      else if (pawn.mode === 'release') stepRelease(pawn, dt);
+      else if (pawn.mode === 'cell' && pawn.slotPos) pawn.pos.set(pawn.slotPos.lx, TILE_Y, pawn.slotPos.lz);
+      const poseMode = pawn.mode === 'cell' || (pawn.mode === 'arrest' && pawn.phaseT > 4.2) ? 'sit'
+        : (pawn.hop || pawn.mode === 'arrest' || pawn.mode === 'release') ? 'walk' : 'idle';
+      updateVisual(pawn.visual, poseMode, now / 1000, dt, catalog);
+      pawn.visual.root.position.copy(pawn.pos);
+      pawn.visual.root.rotation.y = pawn.yaw;
+      const away = zoneOf(pawn.target) !== active && pawn !== focus;
+      pawn.visual.root.visible = !away && pawn.zone === active;
+    }
+    if (focus && focus.zone !== active && !flip) beginFlip(focus.zone);
+  }
+
+  function stepFree(pawn, dt, now) {
+    if (pawn.hop) {
+      const u = Math.min(1, (now - pawn.hop.t0) / pawn.hop.dur);
+      const a = localPoint(pawn.hop.from);
+      const b = localPoint(pawn.hop.to);
+      pawn.pos.set(
+        a.lx + (b.lx - a.lx) * u,
+        TILE_Y + Math.sin(u * Math.PI) * (pawn.hop.slide ? 0.15 : 0.45),
+        a.lz + (b.lz - a.lz) * u,
+      );
+      pawn.face.set(b.lx - a.lx, b.lz - a.lz);
+      if (u >= 1) {
+        pawn.index = pawn.hop.to;
+        pawn.hop = null;
+        const landed = localPoint(pawn.index);
+        pawn.face.set(landed.tx, landed.tz);
+        if (pawn.slideLeft && pawn.slideLeft.length) {
+          const n = pawn.slideLeft.shift();
+          startHop(pawn, pawn.index, n, true);
+        }
+      }
+    } else if (pawn.slideLeft && pawn.slideLeft.length) {
+      const n = pawn.slideLeft.shift();
+      startHop(pawn, pawn.index, n, true);
+    } else if (zoneOf(pawn.target) !== zoneOf(pawn.index)) {
+      const tz = zoneOf(pawn.target);
+      if (pawn === followPawn() && !flip && active !== tz) beginFlip(tz);
+      else if (!flip && (pawn !== followPawn() || active === tz)) {
+        const f = localPoint(pawn.target);
+        pawn.index = f.id;
+        pawn.pos.set(f.lx, TILE_Y, f.lz);
+        parentTo(pawn, tz);
+      }
+    } else if (pawn.index !== pawn.target) {
+      const next = pawn.index + Math.sign(pawn.target - pawn.index);
+      startHop(pawn, pawn.index, next, false);
+    } else {
+      const f = localPoint(pawn.index);
+      pawn.pos.set(f.lx, TILE_Y, f.lz);
+      if (!pawn.face.lengthSq()) pawn.face.set(f.tx, f.tz);
+      parentTo(pawn, f.zone);
+    }
+    const len = Math.hypot(pawn.face.x, pawn.face.y) || 1;
+    const aim = yawFacing(pawn.face.x / len, pawn.face.y / len);
+    pawn.yaw = damp(pawn.yaw, aim, dt);
+  }
+
+  function startHop(pawn, from, to, slide) {
+    pawn.hop = { from, to, t0: performance.now(), dur: slide ? 90 : Math.max(90, state && state.stepMs || 260), slide };
+    parentTo(pawn, zoneOf(to));
+  }
+
+  function stepArrest(pawn, dt) {
+    pawn.phaseT += dt;
+    const f = localPoint(pawn.arrestField == null ? pawn.index : pawn.arrestField);
+    const jail = pawn.jail || jailFor(f.zone);
+    const door = jail ? { lx: jail.lx, lz: jail.lz - 1.7 } : { lx: f.lx, lz: f.lz };
+    const seat = pawn.slotPos || door;
+    const t = pawn.phaseT;
+    if (t < 1.4) {
+      const u = t / 1.4;
+      pawn.pos.set(f.lx + (door.lx - f.lx) * u * 0.35, TILE_Y, f.lz + (door.lz - f.lz) * u * 0.35);
+    } else if (t < 2.4) {
+      pawn.pos.set(f.lx, TILE_Y, f.lz);
+    } else if (t < 4.9) {
+      const u = (t - 2.4) / 2.5;
+      pawn.pos.set(f.lx + (door.lx - f.lx) * u, TILE_Y, f.lz + (door.lz - f.lz) * u);
+    } else if (t < 6.1) {
+      const u = (t - 4.9) / 1.2;
+      pawn.pos.set(door.lx + (seat.lx - door.lx) * u, TILE_Y, door.lz + (seat.lz - door.lz) * u);
+    } else {
+      pawn.mode = 'cell';
+      pawn.pos.set(seat.lx, TILE_Y, seat.lz);
+    }
+    pawn.face.set((door.lx - pawn.pos.x) || 0.01, (door.lz - pawn.pos.z) || 0);
+    pawn.yaw = yawFacing(pawn.face.x, pawn.face.y);
+    parentTo(pawn, f.zone);
+  }
+
+  function stepRelease(pawn, dt) {
+    pawn.phaseT += dt;
+    const back = localPoint(pawn.target);
+    const from = pawn.slotPos || { lx: pawn.pos.x, lz: pawn.pos.z };
+    const u = Math.min(1, pawn.phaseT / 1.8);
+    pawn.pos.set(from.lx + (back.lx - from.lx) * u, TILE_Y, from.lz + (back.lz - from.lz) * u);
+    if (u >= 1) {
+      pawn.mode = 'free';
+      pawn.slot = -1;
+      pawn.index = back.id;
+      parentTo(pawn, back.zone);
+    }
+  }
+
+  function noteSlides() {
+    const mv = state && state.lastMove;
+    if (!mv || mv.kind !== 'slide') return;
+    const key = mv.playerId + ':' + mv.from + ':' + mv.to + ':' + (mv.seq || '');
+    if (key === slideSeq) return;
+    slideSeq = key;
+    const pawn = players.get(mv.playerId);
+    if (!pawn) return;
+    const from = mv.from | 0;
+    const to = mv.to | 0;
+    const path = [];
+    const dir = Math.sign(to - from) || -1;
+    for (let i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) path.push(i);
+    pawn.index = from;
+    pawn.slideLeft = path;
+    pawn.hop = null;
+    if (zoneOf(from) !== zoneOf(to)) beginFlip(zoneOf(to));
+  }
+
+  function beginFlip(to) {
+    if (!to || to === active || flip) return;
+    flip = { from: active, to, t: 0 };
+    pages[to].visible = true;
+    pages[to].rotation.x = 0;
+    pages[fromZone(flip)].rotation.x = 0;
+  }
+
+  function fromZone(f) { return f.from; }
+
+  function stepFlip(dt) {
+    if (!flip) return;
+    flip.t += dt;
+    const u = Math.min(1, flip.t / 0.85);
+    const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    pages[flip.from].rotation.x = e * Math.PI * 0.72;
+    if (u >= 1) {
+      pages[flip.from].visible = false;
+      pages[flip.from].rotation.x = 0;
+      active = flip.to;
+      pages[active].visible = true;
+      pages[active].rotation.x = 0;
+      for (const pawn of players.values()) {
+        if (pawn.zone === active) parentTo(pawn, active);
+      }
+      refreshNpcs();
+      flip = null;
+    }
+  }
+
+  function stepCamera(dt) {
+    const pawn = followPawn();
+    if (flip) {
+      _desired.set(PAGE.w / 2, 26, 32);
+      _look.set(PAGE.w / 2, 1.2, PAGE.d * 0.35);
+    } else if (!pawn || (state && state.phase === 'lobby')) {
+      _desired.set(PAGE.w * 0.15, 22, PAGE.d * 0.92);
+      _look.set(PAGE.w * 0.48, 0, PAGE.d * 0.42);
+    } else if (pawn.mode === 'arrest' || pawn.mode === 'cell' || pawn.mode === 'release') {
+      pawn.visual.root.getWorldPosition(_wp);
+      _desired.set(_wp.x + 4.5, 7.2, _wp.z + 6.5);
+      _look.set(_wp.x, 0.8, _wp.z);
+    } else {
+      pawn.visual.root.getWorldPosition(_wp);
+      const inside = localPoint(pawn.index).building;
+      const dist = inside ? 11 : 14;
+      const height = inside ? 9.5 : 12;
+      _desired.set(_wp.x - 6, _wp.y + height, _wp.z + dist);
+      _look.set(_wp.x + 1.5, 0.8, _wp.z - 1);
+    }
+    const k = 1 - Math.exp(-dt * 3.2);
+    camPos.lerp(_desired, k);
+    lookPos.lerp(_look, k);
+    camera.position.copy(camPos);
+    camera.lookAt(lookPos);
+  }
+
+  function stepPins() {
+    const focus = followPawn();
+    const others = [];
+    for (const pawn of players.values()) if (zoneOf(pawn.target) !== active && pawn !== focus) others.push(pawn);
+    while (pins.length < others.length) {
+      const g = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+      head.position.y = 2.05;
+      const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.1, 6), new THREE.MeshBasicMaterial({ color: '#2E2E33' }));
+      needle.position.y = 0.55;
+      const tag = makeNameSprite('andere Zone');
+      tag.position.y = 2.7;
+      tag.scale.set(2.2, 0.55, 1);
+      g.add(head, needle, tag);
+      pins.push(g);
+    }
+    const anchor = followPawn();
+    pins.forEach((pin, i) => {
+      const pawn = others[i];
+      if (!pawn || !anchor) { pin.visible = false; return; }
+      if (pin.parent !== scene) scene.add(pin);
+      pin.visible = true;
+      anchor.visual.root.getWorldPosition(_wp);
+      pin.position.set(_wp.x + 1.7 + i * 1.2, 0, _wp.z + 0.3);
+      pin.scale.setScalar(1);
+      pin.children[0].material.color.set(pawn.color || '#E6197E');
+    });
+  }
+
+  function clearNpcs() {
+    for (const n of npcs) n.root.removeFromParent();
+    npcs.length = 0;
+  }
+
+  function refreshNpcs() {
+    clearNpcs();
+    const preset = PRESETS[tier];
+    const shops = layout.buildings.filter(b => b.zone === active);
+    let budget = 16 - Math.min(6, players.size);
+    for (const shop of shops) {
+      const jobs = SHOP_JOBS[shop.id] || [];
+      const count = Math.min(jobs.length, preset.npcs, budget);
+      for (let i = 0; i < count; i++) {
+        budget--;
+        npcs.push(makeNpc(jobs[i], shop, i));
+      }
+    }
+    if (preset.fill > 0.5 && budget > 0) spawnFill(active, budget, preset);
+    const content = contentOf(active);
+    for (const n of npcs) content.add(n.root);
+  }
+
+  function makeNpc(job, shop, i) {
+    const root = new THREE.Group();
+    const player = { id: shop.id + i, figure: figureFor(job.model), color: job.tint, name: shop.name };
+    const visual = createPlayerVisual(player, catalog, loader);
+    if (chars && chars[job.model]) {
+      const model = cloneSkinned(chars[job.model].scene);
+      stand(model);
+      model.rotation.y = Math.PI;
+      paintCharacter(model, job.tint);
+      visual.tilt.add(model);
+      visual.model = model;
+      visual.mixer = new THREE.AnimationMixer(model);
+      visual.clips = {};
+      for (const clip of chars[job.model].animations || []) visual.clips[clip.name.toLowerCase()] = clip;
+      visual.placeholder.visible = false;
+    } else visual.placeholder.visible = true;
+    root.add(visual.root);
+    const home = { lx: shop.lx + (i ? 1.1 : -1.1), lz: shop.lz + 0.4 };
+    root.position.set(home.lx, 0, home.lz);
+    const steps = job.steps.map((s, idx) => ({
+      mode: s[0] === 'sit' ? 'sit' : s[0] === 'punch' ? 'punch' : s[0] === 'pickup' ? 'pickup' : s[0] === 'carry' ? 'carry' : s[0] === 'wait' ? 'idle' : 'walk',
+      dur: s[1],
+      to: {
+        lx: shop.lx + Math.cos(idx + i) * 1.4,
+        lz: shop.lz + Math.sin(idx * 1.3) * 1.1,
+      },
+    }));
+    return { root, visual, steps, i: 0, t: Math.random(), from: { ...home }, home, forever: steps.length === 1 && steps[0].mode === 'sit' };
+  }
+
+  function figureFor(model) {
+    if (model.startsWith('Chef')) return 'koch';
+    if (model.startsWith('Doctor')) return 'arzt';
+    if (model === 'Suit_Male') return 'buero';
+    if (model.includes('Female') && model.includes('Worker')) return 'lager';
+    return 'mechanik';
+  }
+
+  function stand(obj) {
+    obj.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    obj.scale.setScalar(1.7 / (size.y || 1));
+    obj.updateMatrixWorld(true);
+    const fitted = new THREE.Box3().setFromObject(obj);
+    obj.position.y -= fitted.min.y;
+  }
+
+  function spawnFill(zone, budget, preset) {
+    if (zone === 2) {
+      const sit = Math.min(budget, preset.npcs > 1 ? 3 : 2);
+      for (let i = 0; i < sit; i++) npcs.push(fillActor('Casual_Male', '#7CC242', 14 + i * 1.6, 7.4, 'sit', true));
+      if (budget - sit > 0) npcs.push(fillActor('Casual_Female', '#F7931E', 17, 6.2, 'walk', false));
+    }
+    if (zone === 4) {
+      const n = Math.min(budget, preset.fill > 0.8 ? 4 : 2);
+      for (let i = 0; i < n; i++) {
+        npcs.push(fillActor(i % 2 ? 'Casual_Female' : 'Suit_Male', i % 2 ? '#FFD23F' : '#1F5FD6', 24 + i * 1.4, 8.6, i < 2 ? 'idle' : 'walk', i < 2));
+      }
+    }
+  }
+
+  function fillActor(model, tint, x, z, mode, forever) {
+    const root = new THREE.Group();
+    const visual = createPlayerVisual({ id: model + x, figure: figureFor(model), color: tint, name: '' }, catalog, loader);
+    if (chars && chars[model]) {
+      const cloned = cloneSkinned(chars[model].scene);
+      stand(cloned);
+      cloned.rotation.y = Math.PI;
+      paintCharacter(cloned, tint);
+      visual.tilt.add(cloned);
+      visual.model = cloned;
+      visual.mixer = new THREE.AnimationMixer(cloned);
+      visual.clips = {};
+      for (const clip of chars[model].animations || []) visual.clips[clip.name.toLowerCase()] = clip;
+      visual.placeholder.visible = false;
+    } else visual.placeholder.visible = true;
+    root.add(visual.root);
+    root.position.set(x, 0, z);
+    return {
+      root, visual, forever,
+      steps: [{ mode, dur: forever ? 99 : 2.4, to: { lx: x + 2.2, lz: z } }],
+      i: 0, t: 0, from: { lx: x, lz: z }, home: { lx: x, lz: z },
+    };
+  }
+
+  function stepNpcs(dt, now) {
+    const content = contentOf(active);
+    const train = content.userData.train;
+    if (train) {
+      const u = (Math.sin(now / 1000 * 0.35) + 1) / 2;
+      train.position.x = 18 + u * 8;
+    }
+    for (const n of npcs) {
+      const step = n.steps[n.i];
+      n.t += dt;
+      if (!n.forever && (step.mode === 'walk' || step.mode === 'carry')) {
+        const dur = step.dur || 1.2;
+        const u = Math.min(1, n.t / dur);
+        n.root.position.set(
+          n.from.lx + (step.to.lx - n.from.lx) * u,
+          0,
+          n.from.lz + (step.to.lz - n.from.lz) * u,
+        );
+        if (u >= 1) advanceNpc(n);
+      } else if (!n.forever && n.t > (step.dur || 1)) {
+        advanceNpc(n);
+      }
+      updateVisual(n.visual, step.mode === 'walk' ? 'walk' : step.mode, now / 1000, n.forever ? 0 : dt, catalog);
+      if (n.forever && n.visual.mixer) n.visual.mixer.timeScale = n.t > 1.2 ? 0 : 1;
+    }
+  }
+
+  function advanceNpc(n) {
+    n.i = (n.i + 1) % n.steps.length;
+    n.t = 0;
+    n.from = { lx: n.root.position.x, lz: n.root.position.z };
+  }
+
+  function damp(a, b, dt) {
+    const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+    return a + d * (1 - Math.exp(-dt * 6));
+  }
+
+  function hud() {
+    const pawn = followPawn();
+    const f = pawn ? localPoint(pawn.index) : null;
+    const shop = f && f.building && layout.buildings.find(b => b.id === f.building);
+    if (opts.onHud) {
+      opts.onHud({
+        title: flip ? 'Umblättern' : (ZONE_NAME[active] || 'Stadt'),
+        sub: f ? `${f.label} · ${TYPE_DE[f.type3d] || ''}${shop ? ' · ' + shop.name : ''}${pawn.mode === 'cell' ? ' · Zelle' : ''}` : 'Warte auf die Runde',
+      });
+    }
+  }
 
   function resize() {
-    const w = canvas.clientWidth || 1;
-    const h = canvas.clientHeight || 1;
-    const dpr = dprFor(PRESETS[tier]);
+    const w = canvas.clientWidth || 1280;
+    const h = canvas.clientHeight || 720;
+    const dpr = Math.min(DPR_CAP, (PRESETS[tier].dpr || 1) * (window.devicePixelRatio || 1));
     renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
     camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
   }
 
-  function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
-    noteFps(now, dt);
-    const viewW = canvas.clientWidth;
-    const viewH = canvas.clientHeight;
-    if (viewW < 2 || viewH < 2) return;
-    const pr = renderer.getPixelRatio();
-    if (Math.abs(canvas.width - Math.floor(viewW * pr)) > 2 || Math.abs(canvas.height - Math.floor(viewH * pr)) > 2) resize();
-
-    const t = now / 1000;
-    stepPlayers(now, dt, t);
-    stepDoors(dt);
-    stepPeds(built.peds, dt);
-    stepConfetti(confetti, dt);
-    stepRain(rain, dt, t, rainUntil);
-    stepBelt(dt);
-    if (celebrate && now > partyAt) {
-      partyAt = now + 420;
-      const top = built.podium && built.podium.slots[0];
-      if (top) burst(confetti, top.x, top.y + 1, top.z, 8);
-    }
-    stepNpcs(t);
-    stepCrowd(built, dt, scene);
-    stepCar(dt, t);
-    stepCamera(dt, t);
-    renderer.render(scene, camera);
+  function applyTier() {
+    for (const z of [1, 2, 3, 4]) applyDecor(pages[z], PRESETS[tier].decor);
+    refreshNpcs();
+    resize();
   }
 
-  function loop(now) {
-    if (!running) return;
-    raf = requestAnimationFrame(loop);
-    try {
-      frame(now);
-      errors = 0;
-    } catch (err) {
-      errors += 1;
-      console.error(err);
-      if (errors >= 3) fallback('Die 3D-Stadt ist abgestürzt. Es wird das 2D-Brett gezeigt.');
-    }
-  }
-
-  function noteFps(now, dt) {
+  function noteFps(now) {
     fpsFrames += 1;
     const span = now - fpsStamp;
     if (span < 500) return;
@@ -212,34 +678,9 @@ export function mountCity(canvas, board, opts = {}) {
       if (fps < 18) badSince += span / 1000; else badSince = 0;
       if (tier === 'hoch' && lowSince > 1.2) { tier = 'mittel'; lowSince = 0; applyTier(); }
       else if (tier === 'mittel' && lowSince > 1.2) { tier = 'niedrig'; lowSince = 0; applyTier(); }
-      else if (tier === 'niedrig' && badSince > 2.5) {
-        fallback('Die 3D-Stadt ist auf diesem Gerät zu langsam. Es wird das 2D-Brett gezeigt.');
-      }
+      else if (tier === 'niedrig' && badSince > 2.5) fallback('Die 3D-Stadt ist auf diesem Gerät zu langsam. Es wird das 2D-Brett gezeigt.');
     }
-    const label = `${Math.round(fps)} FPS · ${tierName(tier)}${qualityMode === 'auto' ? ' (automatisch)' : ''}`;
-    if (opts.onFps) opts.onFps({ fps, tier, label });
-    void dt;
-  }
-
-  function applyTier() {
-    const preset = PRESETS[tier];
-    if (built) built.setQuality(preset);
-    const size = preset.shadows | 0;
-    const shadows = size > 0;
-    renderer.shadowMap.enabled = shadows;
-    sun.castShadow = shadows;
-    if (shadows) {
-      if (sun.shadow.mapSize.x !== size) {
-        sun.shadow.mapSize.set(size, size);
-        if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
-      }
-      sun.shadow.radius = preset.shadowRadius || 1.5;
-      sun.shadow.needsUpdate = true;
-    }
-    resize();
-    scene.fog.far = tier === 'niedrig' ? 90 : 150;
-    applyDensity(scene, preset.decor == null ? 1 : preset.decor);
-    sun.shadow.radius = preset.shadowRadius || 2.4;
+    if (opts.onFps) opts.onFps({ fps, tier, label: `${Math.round(fps)} FPS · ${tierName(tier)}${qualityMode === 'auto' ? ' (automatisch)' : ''}` });
   }
 
   function fallback(msg) {
@@ -250,583 +691,55 @@ export function mountCity(canvas, board, opts = {}) {
     if (opts.onFallback) opts.onFallback(msg);
   }
 
-  function syncPlayers() {
-    const list = (state && state.players) || [];
-    const alive = new Set();
-    for (const p of list) {
-      alive.add(p.id);
-      let pawn = players.get(p.id);
-      if (!pawn) {
-        pawn = createPawn(p);
-        players.set(p.id, pawn);
-      }
-      if (pawn.color !== p.color) {
-        pawn.color = p.color;
-        const tint = pawn.visual.placeholder.userData.tint || [];
-        for (const m of tint) m.color.set(p.color);
-      }
-      if (pawn.connected !== p.connected) {
-        pawn.connected = p.connected;
-        const opacity = p.connected ? 1 : 0.4;
-        pawn.visual.placeholder.traverse(o => {
-          if (!o.material) return;
-          o.material.transparent = opacity < 1;
-          o.material.opacity = opacity;
-        });
-      }
-      pawn.target = p.pos | 0;
-      pawn.wantJail = !!p.jail;
-      pawn.name = p.name;
-    }
-    for (const [id, pawn] of players) {
-      if (alive.has(id)) continue;
-      scene.remove(pawn.visual.root);
-      if (pawn.nameSprite) scene.remove(pawn.nameSprite);
-      players.delete(id);
-    }
-  }
-
-  function createPawn(p) {
-    const visual = createPlayerVisual(p, catalog, loader);
-    visual.load(catalog, loader);
-    if (worldLib) equipFromLibrary(visual, worldLib, p);
-    scene.add(visual.root);
-    const nameSprite = makeNameSprite(p.name);
-    visual.root.add(nameSprite);
-    const pawn = {
-      id: p.id,
-      visual,
-      nameSprite,
-      color: p.color,
-      connected: p.connected,
-      name: p.name,
-      index: null,
-      target: p.pos | 0,
-      wantJail: !!p.jail,
-      mode: 'free',
-      hop: null,
-      pos: new THREE.Vector3(),
-      face: new THREE.Vector2(1, 0),
-      yaw: 0,
-      arrestT: 0,
-      releaseT: 0,
-      prison: null,
-      emote: null,
-      cuffed: false,
-      born: true,
-    };
-    return pawn;
-  }
-
-  function snapAll() {
-    for (const pawn of players.values()) {
-      pawn.hop = null;
-      pawn.index = pawn.target;
-      pawn.mode = 'free';
-      pawn.cuffed = false;
-      if (pawn.wantJail) putInCell(pawn, false);
-      else putOnField(pawn, pawn.index);
-      pawn.visual.root.position.copy(pawn.pos);
-    }
-  }
-
-  function stepPlayers(now, dt, t) {
-    const activeId = activePlayerId();
-    const stacks = new Map();
-    for (const pawn of players.values()) {
-      if (pawn.born) {
-        pawn.born = false;
-        pawn.index = pawn.target;
-        if (pawn.wantJail) putInCell(pawn, false);
-        else putOnField(pawn, pawn.index);
-      }
-      if (pawn.mode === 'free' && pawn.wantJail && pawn.index === pawn.target && !pawn.hop) {
-        startArrest(pawn);
-      }
-      if ((pawn.mode === 'cell' || pawn.mode === 'arrest') && !pawn.wantJail) {
-        startRelease(pawn);
-      }
-      if (pawn.mode === 'arrest') stepArrest(pawn, dt);
-      else if (pawn.mode === 'release') stepRelease(pawn, dt);
-      else if (pawn.mode === 'cell') {
-        if (pawn.prison) pawn.pos.copy(pawn.prison.seat);
-        pawn.cuffed = true;
-      } else if (celebrate && pawn.slot) {
-        pawn.pos.lerp(_a.set(pawn.slot.x, pawn.slot.y, pawn.slot.z), Math.min(1, dt * 3));
-        pawn.hop = null;
-      } else {
-        stepHop(pawn, now);
-        if (!pawn.hop && pawn.mode === 'free') {
-          const arr = stacks.get(pawn.index) || [];
-          arr.push(pawn);
-          stacks.set(pawn.index, arr);
-        }
-      }
-
-      let poseMode = 'idle';
-      if (pawn.mode === 'cell' || (pawn.mode === 'arrest' && pawn.arrestT > 1.35)) poseMode = 'sit';
-      else if (pawn.hop) poseMode = 'walk';
-      else if (pawn.emote && pawn.emote.until > now) poseMode = pawn.emote.mode;
-      else if (celebrate && pawn.slot && pawn.place === 0) poseMode = 'cheer';
-      if (pawn.mode === 'free' && pawn.hop && pawn.hop.back) poseMode = 'walk';
-      const showNames = players.size <= 10 || pawn.id === activeId || pawn.hop;
-      pawn.nameSprite.visible = showNames;
-      setCuffs(pawn.visual.placeholder, pawn.cuffed && !pawn.visual.model);
-      updateVisual(pawn.visual, poseMode, t, dt, catalog);
-      const faceYaw = yawFacing(pawn.face.x, pawn.face.y);
-      pawn.yaw = dampAngle(pawn.yaw, faceYaw, dt);
-      pawn.visual.root.rotation.y = pawn.yaw;
-      pawn.visual.root.position.copy(pawn.pos);
-      if (pawn.hop) pawn.visual.root.position.y = pawn.pos.y;
-    }
-    for (const [index, arr] of stacks) {
-      if (arr.length < 2) continue;
-      const f = layout.points[index];
-      if (!f) continue;
-      arr.forEach((pawn, k) => {
-        const ang = k * 1.8;
-        const rad = 0.42;
-        pawn.pos.set(f.x + Math.cos(ang) * rad, TILE_Y, f.z + Math.sin(ang) * rad);
-        pawn.visual.root.position.copy(pawn.pos);
-      });
-    }
-    const follow = followPawn();
-    built.insideIndex = follow ? follow.index : -1;
-    built.pulseIndex = follow ? (follow.hop ? follow.hop.to : follow.target) : -1;
-    ring.visible = !!(follow && follow.mode === 'free');
-    if (follow && ring.visible) ring.position.set(follow.pos.x, TILE_Y + 0.05, follow.pos.z);
-
-    if (card.visible && follow) {
-      const f = layout.points[follow.index] || layout.points[0];
-      card.position.set(follow.pos.x + (f ? f.sx : 1) * 1.6, follow.pos.y + 2.15, follow.pos.z + (f ? f.sz : 0) * 1.6);
-      card.lookAt(camera.position);
-    }
-    if (dice.visible && follow && now < diceUntil) {
-      dice.position.set(follow.pos.x, follow.pos.y + 2.5, follow.pos.z);
-    } else dice.visible = false;
-
-    if (opts.onHud) {
-      const f = follow && layout.points[follow.index];
-      const b = f && f.building && layout.buildings.find(x => x.id === f.building);
-      opts.onHud({
-        title: b ? b.name : (celebrate ? 'Siegerehrung' : 'Stadt'),
-        sub: f ? `${f.label && f.type !== 'normal' ? f.label : 'Feld ' + f.id} · ${TYPE_DE[f.type] || 'Weg'}${b ? ' · ' + b.blurb : ''}` : 'Warte auf die Runde',
-      });
-    }
-  }
-
-  function stepHop(pawn, now) {
-    if (pawn.hop) {
-      const u = Math.min(1, (now - pawn.hop.t0) / pawn.hop.dur);
-      const A = layout.points[pawn.hop.from];
-      const B = layout.points[pawn.hop.to];
-      if (A && B) {
-        pawn.pos.set(
-          A.x + (B.x - A.x) * u,
-          TILE_Y + Math.sin(u * Math.PI) * (pawn.hop.back ? 0.22 : 0.58),
-          A.z + (B.z - A.z) * u,
-        );
-        pawn.face.set(B.x - A.x, B.z - A.z);
-      }
-      if (u >= 1) {
-        pawn.index = pawn.hop.to;
-        pawn.hop = null;
-        const landed = layout.points[pawn.index];
-        if (landed) pawn.face.set(landed.tx, landed.tz);
-      }
+  function loop(now) {
+    if (!running) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    try {
+      stepFlip(dt);
+      stepPlayers(dt, now);
+      noteSlides();
+      stepNpcs(dt, now);
+      stepPins();
+      stepCamera(dt);
+      hud();
+      renderer.render(scene, camera);
+      canvas.dataset.pins = String(pins.filter(p => p.visible).length);
+      canvas.dataset.calls = String(renderer.info.render.calls);
+      canvas.dataset.tris = String(renderer.info.render.triangles);
+      noteFps(now);
+    } catch (err) {
+      console.error(err);
+      fallback('Die 3D-Ansicht hat einen Fehler. Es wird das 2D-Brett gezeigt.');
       return;
     }
-    if (pawn.index !== pawn.target) {
-      const next = pawn.index + Math.sign(pawn.target - pawn.index);
-      if (!layout.points[next]) { pawn.index = pawn.target; return; }
-      pawn.hop = { from: pawn.index, to: next, t0: now, dur: Math.max(80, stepMs), back: next < pawn.index };
-    } else {
-      const f = layout.points[pawn.index];
-      if (f) {
-        pawn.pos.set(f.x, TILE_Y, f.z);
-        if (!pawn.face.lengthSq()) pawn.face.set(f.tx, f.tz);
-      }
-    }
-  }
-
-  function startArrest(pawn) {
-    pawn.mode = 'arrest';
-    pawn.arrestT = 0;
-    pawn.prison = prisonByField(pawn.index);
-    pawn.cuffed = false;
-    pawn._from = pawn.pos.clone();
-    if (pawn.prison) {
-      carJob = { pawn, t: 0, phase: 'in' };
-      const f = layout.points[pawn.index];
-      if (f) {
-        carFrom.copy(_a.set(f.x - f.tx * 10, 0, f.z - f.tz * 10));
-        carTo.copy(_a.set(f.x - f.tx * 2.1 + f.sx * 1.5, 0, f.z - f.tz * 2.1 + f.sz * 1.5));
-      }
-      built.car.visible = true;
-      built.car.position.copy(carFrom);
-    }
-  }
-
-  function stepArrest(pawn, dt) {
-    pawn.arrestT += dt;
-    const t = pawn.arrestT;
-    const prison = pawn.prison;
-    if (prison) prison.wantOpen = (t > 0.45 && t < 1.9) ? 1 : 0;
-    pawn.cuffed = t > 0.55;
-    if (prison && t >= 0.7 && t < 1.45) {
-      const u = ease((t - 0.7) / 0.75);
-      pawn.pos.lerpVectors(pawn._from, prison.doorSpot, u);
-      pawn.face.set(prison.doorSpot.x - pawn._from.x, prison.doorSpot.z - pawn._from.z);
-    } else if (prison && t >= 1.45) {
-      const u = ease(Math.min(1, (t - 1.45) / 0.45));
-      pawn.pos.lerpVectors(prison.doorSpot, prison.seat, u);
-      pawn.face.set(prison.seat.x - prison.doorSpot.x, prison.seat.z - prison.doorSpot.z);
-    }
-    if (t >= 2.05) {
-      pawn.mode = 'cell';
-      pawn.cellCamUntil = performance.now() + 3200;
-      if (prison) pawn.pos.copy(prison.seat);
-      if (carJob && carJob.pawn === pawn) carJob.phase = 'out';
-    }
-  }
-
-  function startRelease(pawn) {
-    pawn.mode = 'release';
-    pawn.releaseT = 0;
-    pawn._from = pawn.pos.clone();
-    const f = layout.points[pawn.index];
-    pawn._to = f ? new THREE.Vector3(f.x, TILE_Y, f.z) : pawn.pos.clone();
-  }
-
-  function stepRelease(pawn, dt) {
-    pawn.releaseT += dt;
-    const t = pawn.releaseT;
-    if (pawn.prison) pawn.prison.wantOpen = t < 0.9 ? 1 : 0;
-    pawn.cuffed = t < 0.25;
-    if (t < 0.85) {
-      const u = ease(Math.min(1, t / 0.85));
-      pawn.pos.lerpVectors(pawn._from, pawn._to, u);
-      pawn.face.set(pawn._to.x - pawn._from.x, pawn._to.z - pawn._from.z);
-    }
-    if (t >= 0.9) {
-      pawn.mode = 'free';
-      pawn.pos.copy(pawn._to);
-      const f = layout.points[pawn.index];
-      if (f) pawn.face.set(f.tx, f.tz);
-    }
-  }
-
-  function putInCell(pawn, openDoor) {
-    pawn.prison = prisonByField(pawn.index);
-    pawn.mode = 'cell';
-    pawn.cuffed = true;
-    if (pawn.prison) {
-      pawn.pos.copy(pawn.prison.seat);
-      pawn.prison.wantOpen = openDoor ? 1 : 0;
-      const f = layout.points[pawn.index];
-      if (f) pawn.face.set(f.x - pawn.prison.seat.x, f.z - pawn.prison.seat.z);
-    } else putOnField(pawn, pawn.index);
-  }
-
-  function putOnField(pawn, index) {
-    const f = layout.points[index] || layout.points[0];
-    if (!f) return;
-    pawn.pos.set(f.x, TILE_Y, f.z);
-    pawn.face.set(f.tx, f.tz);
-    pawn.mode = 'free';
-  }
-
-  function prisonByField(index) {
-    for (const pr of built.prisons) if (pr.fieldIndex === index) return pr;
-    return null;
-  }
-
-  function stepDoors(dt) {
-    for (const pr of built.prisons) {
-      const target = pr.wantOpen ? 1.2 : 0;
-      pr.hinge.rotation.y += (target - pr.hinge.rotation.y) * Math.min(1, dt * 6);
-      pr.wantOpen = 0;
-    }
-  }
-
-  function stepNpcs(t) {
-    for (const n of built.npcRoots) {
-      if (!n.root.visible) continue;
-      pose(n.root, n.anim === 'idle' ? 'idle' : n.anim, t);
-    }
-  }
-
-  let carJob = null;
-  const carFrom = new THREE.Vector3();
-  const carTo = new THREE.Vector3();
-  const carAway = new THREE.Vector3();
-
-  function stepCar(dt, t) {
-    const car = built.car;
-    if (!carJob) { car.visible = false; return; }
-    car.visible = true;
-    carJob.t += dt;
-    const blink = Math.floor(t * 8) % 2 === 0;
-    car.userData.red.visible = blink;
-    car.userData.blue.visible = !blink;
-      if (car.userData.wheels) for (const w of car.userData.wheels) w.rotation.x += dt * (carJob.phase === 'wait' ? 0 : 14);
-    if (carJob.phase === 'in') {
-      const u = ease(Math.min(1, carJob.t / 0.75));
-      car.position.lerpVectors(carFrom, carTo, u);
-      car.lookAt(carTo.x, car.position.y, carTo.z);
-      if (u >= 1) { carJob.phase = 'wait'; carJob.t = 0; }
-    } else if (carJob.phase === 'wait') {
-      car.position.copy(carTo);
-      if (carJob.pawn.mode === 'cell' || carJob.pawn.mode === 'release') {
-        carJob.phase = 'out';
-        carJob.t = 0;
-        const f = layout.points[carJob.pawn.index];
-        carAway.set(carTo.x - (f ? f.tx : 1) * 12, 0, carTo.z - (f ? f.tz : 0) * 12);
-      }
-    } else {
-      const u = Math.min(1, carJob.t / 0.8);
-      car.position.lerpVectors(carTo, carAway, u);
-      car.lookAt(carAway.x, car.position.y, carAway.z);
-      if (u >= 1) { carJob = null; car.visible = false; }
-    }
-  }
-
-  function stepBelt(dt) {
-    const belt = built.belt;
-    if (!belt) return;
-    belt.material.map.offset.x -= dt * 0.55;
-  }
-
-  function stepCamera(dt, t) {
-    let wantLook = _camLook;
-    let dist = 9;
-    let height = 6;
-    if (celebrate && built.podium) {
-      const g = built.podium.group;
-      _desired.set(g.position.x + 11, 10, g.position.z + 14);
-      wantLook = _look.set(g.position.x, 1.4, g.position.z);
-      scene.fog.far = 150;
-    } else {
-      const pawn = followPawn();
-      if (pawn && layout.points.length) {
-        const f = layout.points[Math.max(0, Math.min(layout.points.length - 1, pawn.index || 0))];
-        const inside = !!(f && f.building);
-        const chase = pawn.mode === 'arrest' || pawn.mode === 'cell' || pawn.mode === 'release';
-        const sliding = pawn.hop && pawn.hop.back;
-        if (chase && pawn.prison && f) {
-          // Von schräg oben in die offene Zelle, die Tür bleibt im Bild.
-          const seat = pawn.prison.seat;
-          _desired.set(seat.x + 3.4, 5.6, seat.z + 3.4);
-          _look.set(seat.x, 0.7, seat.z);
-          wantLook = _look;
-        } else {
-          dist = sliding ? 18 : inside ? 13 : 15;
-          height = sliding ? 14 : inside ? 11 : 12;
-          const hasFace = pawn.face.lengthSq() > 0.0001;
-          const tx = hasFace ? pawn.face.x : ((f && f.tx) || 1);
-          const tz = hasFace ? pawn.face.y : ((f && f.tz) || 0);
-          const len = Math.hypot(tx, tz) || 1;
-          _desired.set(pawn.pos.x - (tx / len) * dist, pawn.pos.y + height, pawn.pos.z - (tz / len) * dist);
-          _look.set(pawn.pos.x + (tx / len) * 2.4, pawn.pos.y + 1.15, pawn.pos.z + (tz / len) * 2.4);
-          wantLook = _look;
-        }
-        scene.fog.far = tier === 'niedrig' ? 110 : 170;
-      } else {
-        const b = layout.bounds;
-        const cx = (b.minX + b.maxX) / 2;
-        const cz = (b.minZ + b.maxZ) / 2;
-        _desired.set(cx + Math.sin(t * 0.07) * 8, 52, cz + 46);
-        wantLook = _look.set(cx, 0, cz);
-      }
-    }
-    const k = 1 - Math.exp(-dt * (camReady ? 4.5 : 20));
-    camPos.lerp(_desired, k);
-    lookPos.lerp(wantLook, k);
-    camReady = true;
-    camera.position.copy(camPos);
-    camera.lookAt(lookPos);
-    if (renderer.shadowMap.enabled) {
-      const overview = !followPawn() || (state && state.phase !== 'playing' && !celebrate);
-      const half = overview ? 42 : 16;
-      sun.position.set(lookPos.x + 16, 34, lookPos.z + 9);
-      sun.target.position.set(lookPos.x, 0, lookPos.z);
-      sun.target.updateMatrixWorld();
-      const sc = sun.shadow.camera;
-      sc.left = -half;
-      sc.right = half;
-      sc.top = half;
-      sc.bottom = -half;
-      sc.near = 0.5;
-      sc.far = 72;
-      sc.updateProjectionMatrix();
-    }
-  }
-
-  function followPawn() {
-    if (!state) return null;
-    let moving = null;
-    let jailed = null;
-    for (const pawn of players.values()) {
-      if (pawn.hop || pawn.mode === 'arrest' || pawn.mode === 'release') moving = pawn;
-      else if (pawn.mode === 'cell' && pawn.cellCamUntil && performance.now() < pawn.cellCamUntil) jailed = pawn;
-    }
-    if (moving) return moving;
-    if (jailed) return jailed;
-    if (state.phase === 'playing' && state.players && state.players[state.turn]) {
-      return players.get(state.players[state.turn].id) || null;
-    }
-    if (celebrate && state.winner) return players.get(state.winner.playerId) || players.values().next().value || null;
-    return players.values().next().value || null;
-  }
-
-  function activePlayerId() {
-    if (!state || state.phase !== 'playing' || !state.players) return null;
-    const cur = state.players[state.turn];
-    return cur ? cur.id : null;
-  }
-
-  function syncFx() {
-    const pd = state && state.pending;
-    const key = pd ? [pd.type, pd.playerId, pd.card && pd.card.id, pd.kind, pd.resolved ? 1 : 0, pd.result ? 1 : 0].join('|') : '';
-    if (key !== pendingKey) {
-      pendingKey = key;
-      if (pd && (pd.type === 'action' || pd.type === 'question')) {
-        drawCard(pd);
-        card.visible = true;
-        const pawn = players.get(pd.playerId);
-        const mood = pd.type === 'question'
-          ? (pd.resolved ? (pd.result ? 'gut' : 'schlecht') : 'frage')
-          : kartenStimmung((pd.card && pd.card.effect) || '');
-        if (pawn && (mood === 'gut' || (pd.type === 'question' && pd.resolved && pd.result))) {
-          pawn.emote = { mode: 'cheer', until: performance.now() + 1600 };
-          burst(confetti, pawn.pos.x, pawn.pos.y + 1.4, pawn.pos.z, 24);
-        } else if (pawn && mood === 'schlecht') {
-          pawn.emote = { mode: 'stumble', until: performance.now() + 1400 };
-          rain.anchor = pawn;
-          rainUntil = performance.now() + 1800;
-        }
-      } else {
-        card.visible = false;
-      }
-    } else if (!pd) card.visible = false;
-
-    const roll = state && state.lastRoll;
-    const rk = roll ? String(roll.at || '') + ':' + roll.value : '';
-    if (roll && rk !== rollKey && state.phase === 'playing') {
-      rollKey = rk;
-      paintDice(roll.value);
-      dice.visible = true;
-      diceUntil = performance.now() + 1400;
-    }
-
-    const was = celebrate;
-    celebrate = !!(state && state.phase === 'finished' && state.winner);
-    if (celebrate && !was) startCeremony();
-    if (!celebrate && was) clearCeremony();
-  }
-
-  function startCeremony() {
-    const ranking = (state.winner && state.winner.ranking) || [];
-    const slots = (built.podium && built.podium.slots) || [];
-    players.forEach(p => { p.slot = null; p.place = null; });
-    ranking.slice(0, slots.length).forEach((r, i) => {
-      const pawn = players.get(r.id);
-      if (!pawn || !slots[i]) return;
-      pawn.slot = slots[i];
-      pawn.place = i;
-      const ziel = layout.points[layout.points.length - 1];
-      if (ziel) pawn.face.set(ziel.x - slots[i].x, ziel.z - slots[i].z);
-    });
-    const top = slots[0];
-    if (top) burst(confetti, top.x, top.y + 1.2, top.z, 36);
-  }
-
-  function clearCeremony() {
-    players.forEach(p => { p.slot = null; p.place = null; });
-  }
-
-  function drawCard(pd) {
-    const g = cardCtx;
-    const w = 640;
-    const h = 360;
-    const question = pd.type === 'question';
-    g.fillStyle = '#10172a';
-    g.fillRect(0, 0, w, h);
-    g.fillStyle = question ? '#2f6fd6' : '#f28c28';
-    g.fillRect(0, 0, 16, h);
-    g.fillStyle = '#ffd76a';
-    g.font = '700 28px system-ui, sans-serif';
-    g.textAlign = 'left';
-    g.fillText(question ? 'FRAGEKARTE' : 'AKTIONSKARTE', 40, 48);
-    g.fillStyle = '#ffffff';
-    g.font = '700 40px system-ui, sans-serif';
-    wrap(g, clipText(pd.card && pd.card.title, 48), 40, 110, 560, 46);
-    g.font = '500 28px system-ui, sans-serif';
-    g.fillStyle = '#d5deee';
-    const body = question ? (pd.card && pd.card.question) : ((pd.card && (pd.card.effectLabel || pd.card.text)) || '');
-    wrap(g, clipText(body, 140), 40, 200, 560, 34);
-    card.userData.texture.needsUpdate = true;
-  }
-
-  function paintDice(value) {
-    const tex = dice.material.map;
-    const c = tex.image;
-    const g = c.getContext('2d');
-    g.clearRect(0, 0, c.width, c.height);
-    g.fillStyle = '#ffffff';
-    round(g, 16, 8, 224, 48, 14);
-    g.fill();
-    g.fillStyle = '#1d2433';
-    g.font = '800 32px system-ui, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('Würfel ' + value, 128, 34);
-    tex.needsUpdate = true;
+    raf = requestAnimationFrame(loop);
   }
 
   function rebuild(next) {
-    disposeBuilt();
-    scene.userData.dressed = false;
     layout = buildLayout((next && next.fields) || []);
-    built = buildCity(scene, layout, next || { colors: {} });
-    applyWorld();
-    built.setQuality(PRESETS[tier]);
-    for (const pawn of players.values()) {
-      pawn.born = true;
-      pawn.hop = null;
-      pawn.mode = 'free';
-      pawn.prison = null;
-      pawn.index = null;
+    for (const z of [1, 2, 3, 4]) {
+      scene.remove(pages[z]);
+      pages[z] = buildZone(layout, z);
+      scene.add(pages[z]);
     }
-    pendingKey = '';
-    scene.add(ring, card, dice);
-    camReady = false;
-  }
-
-  function disposeBuilt() {
-    const keep = new Set([hemi, sun, ring, card, dice, rain.group, ...confetti.map(c => c.m)]);
-    for (const pawn of players.values()) keep.add(pawn.visual.root);
-    for (let i = scene.children.length - 1; i >= 0; i--) {
-      const o = scene.children[i];
-      if (keep.has(o)) continue;
-      scene.remove(o);
-      disposeObj(o);
-    }
+    showOnly(active);
+    applyTier();
   }
 
   return {
     update(s) {
       state = s || state;
-      if (state && state.stepMs) stepMs = state.stepMs;
       syncPlayers();
-      syncFx();
-      if (!running) snapAll();
+      if (!running) {
+        stepPlayers(0.016, performance.now());
+        stepPins();
+        stepCamera(1);
+        hud();
+      }
     },
     start() {
       fallen = false;
-      errors = 0;
-      badSince = 0;
-      lowSince = 0;
       startedAt = performance.now();
       if (!running) {
         running = true;
@@ -849,203 +762,22 @@ export function mountCity(canvas, board, opts = {}) {
     },
     setBoard(next) { rebuild(next); },
     stats() {
-      const pawns = [];
-      for (const p of players.values()) {
-        pawns.push({
-          name: p.name, index: p.index, target: p.target, mode: p.mode, jail: p.wantJail,
-          t: Math.round((p.arrestT || 0) * 100) / 100,
-          x: Math.round(p.pos.x * 10) / 10, z: Math.round(p.pos.z * 10) / 10,
-          seat: p.prison ? { x: Math.round(p.prison.seat.x * 10) / 10, z: Math.round(p.prison.seat.z * 10) / 10 } : null,
-        });
-      }
       return {
         fps: Math.round(fps),
         tier,
         dpr: renderer.getPixelRatio(),
-        shadows: renderer.shadowMap.enabled,
+        shadows: 0,
         calls: renderer.info.render.calls,
         triangles: renderer.info.render.triangles,
-        pawns,
+        zone: active,
       };
     },
   };
 }
 
-function skyGradient() {
-  const c = document.createElement('canvas');
-  c.width = 2;
-  c.height = 256;
-  const g = c.getContext('2d');
-  const grd = g.createLinearGradient(0, 0, 0, 256);
-  grd.addColorStop(0, '#5aa6ef');
-  grd.addColorStop(0.45, '#b7e4fb');
-  grd.addColorStop(0.78, '#ffe3bf');
-  grd.addColorStop(1, '#ffd39a');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, 2, 256);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-function emptyCatalog() {
-  return {
-    scaleToHeight: 1.7,
-    defaultUrl: '',
-    byId: {},
-    byName: {},
-    byColor: {},
-    clips: { idle: ['idle', 'stand'], walk: ['walk', 'run'], sit: ['sit', 'sitting', 'jail'] },
-  };
-}
-
-function startTier() {
-  // Ryzen 5 7530U: 12 Threads, deviceMemory meldet 8 bei 16 GB → Mittel.
-  // Nur klar schwächere Geräte (sehr wenige Kerne oder wenig RAM) starten niedriger.
-  const cores = navigator.hardwareConcurrency || 8;
-  const mem = navigator.deviceMemory || 8;
-  if (cores <= 2 || mem <= 2) return 'niedrig';
-  return 'mittel';
-}
-
-function tierName(tier) {
-  if (tier === 'niedrig') return 'Niedrig';
-  if (tier === 'hoch') return 'Hoch';
-  return 'Mittel';
-}
-
-function dprFor(preset) {
-  const device = window.devicePixelRatio || 1;
-  return Math.min(preset.dpr, device, DPR_CAP);
-}
-
-function ease(u) {
-  const x = Math.min(1, Math.max(0, u));
-  return x * x * (3 - 2 * x);
-}
-
-function dampAngle(cur, target, dt) {
-  let d = target - cur;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return cur + d * Math.min(1, dt * 8);
-}
-
-function clipText(s, n) {
-  const t = String(s || '').replace(/\s+/g, ' ').trim();
-  return t.length > n ? t.slice(0, n - 1) + '…' : t;
-}
-
-function wrap(g, text, x, y, maxW, lh) {
-  const words = String(text || '').split(' ');
-  let line = '';
-  let yy = y;
-  for (const word of words) {
-    const test = line ? line + ' ' + word : word;
-    if (g.measureText(test).width > maxW && line) {
-      g.fillText(line, x, yy);
-      line = word;
-      yy += lh;
-    } else line = test;
-  }
-  if (line) g.fillText(line, x, yy);
-}
-
-function round(g, x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
-  g.closePath();
-}
-
-const CONFETTI_COLORS = ['#ffd76a', '#ff4fa3', '#3d7ff2', '#3dcc7a', '#ffffff', '#f28c28'];
-
-function makeConfetti(scene) {
-  const geo = new THREE.BoxGeometry(0.12, 0.18, 0.03);
-  const mats = CONFETTI_COLORS.map(c => new THREE.MeshBasicMaterial({ color: c }));
-  const list = [];
-  for (let i = 0; i < 48; i++) {
-    const m = new THREE.Mesh(geo, mats[i % mats.length]);
-    m.visible = false;
-    m.frustumCulled = false;
-    scene.add(m);
-    list.push({ m, life: 0, v: new THREE.Vector3() });
-  }
-  return list;
-}
-
-function burst(list, x, y, z, n) {
-  let left = n;
-  for (const c of list) {
-    if (c.life > 0) continue;
-    c.life = 1.1 + Math.random() * 0.5;
-    c.m.visible = true;
-    c.m.position.set(x, y, z);
-    c.v.set((Math.random() - 0.5) * 3.2, 1.8 + Math.random() * 2.2, (Math.random() - 0.5) * 3.2);
-    if (--left <= 0) break;
-  }
-}
-
-function stepConfetti(list, dt) {
-  for (const c of list) {
-    if (c.life <= 0) continue;
-    c.life -= dt;
-    c.v.y -= 5 * dt;
-    c.m.position.addScaledVector(c.v, dt);
-    c.m.rotation.z += dt * 4;
-    if (c.life <= 0 || c.m.position.y < 0) { c.life = 0; c.m.visible = false; }
-  }
-}
-
-function makeRain(scene) {
-  const group = new THREE.Group();
-  const cloud = new THREE.MeshLambertMaterial({ color: '#6d7684' });
-  for (const [x, z, s] of [[0, 0, 0.55], [0.45, 0.1, 0.4], [-0.4, 0.05, 0.38]]) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(s, 7, 6), cloud);
-    m.position.set(x, 0, z);
-    group.add(m);
-  }
-  const drops = [];
-  const dropMat = new THREE.MeshBasicMaterial({ color: '#9ec9e8' });
-  for (let i = 0; i < 10; i++) {
-    const d = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.04), dropMat);
-    d.userData.phase = Math.random();
-    group.add(d);
-    drops.push(d);
-  }
-  group.visible = false;
-  scene.add(group);
-  return { group, drops, anchor: null };
-}
-
-function stepRain(rain, dt, t, until) {
-  if (!rain.anchor || performance.now() > until) {
-    rain.group.visible = false;
-    rain.anchor = null;
-    return;
-  }
-  rain.group.visible = true;
-  const p = rain.anchor.pos;
-  rain.group.position.set(p.x, p.y + 2.3, p.z);
-  rain.drops.forEach((d, i) => {
-    const u = (t * 1.4 + d.userData.phase) % 1;
-    d.position.set(((i % 3) - 1) * 0.28, 0.2 - u * 1.3, ((i % 2) - 0.5) * 0.3);
-  });
-  void dt;
-}
-
-function disposeObj(o) {
-  o.traverse && o.traverse(n => {
-    if (n.geometry && n.geometry.dispose && !n.geometry.userData.shared) n.geometry.dispose();
-    if (n.material) {
-      const mats = Array.isArray(n.material) ? n.material : [n.material];
-      mats.forEach(m => {
-        if (m.map) m.map.dispose();
-        if (m.dispose) m.dispose();
-      });
-    }
-  });
+function loadChars(loader) {
+  return Promise.all(Object.entries(CHAR_FILES).map(async ([id, url]) => {
+    const gltf = await loader.loadAsync(url);
+    return [id, gltf];
+  })).then(list => Object.fromEntries(list));
 }

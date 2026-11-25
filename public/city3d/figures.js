@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { toonMat, skinnedOutline } from './toon.js';
 
 const SKIN = '#f0c3a0';
 const geos = new Map();
@@ -40,7 +41,7 @@ export function shade(hex, t) {
 }
 
 function mat(color) {
-  return new THREE.MeshLambertMaterial({ color });
+  return toonMat(color);
 }
 
 function hang(parent, x, y, z, w, h, d, color) {
@@ -248,7 +249,7 @@ export function createPlayerVisual(player, catalog, loader) {
     skin: SKIN,
     hair: '#2c241c',
   });
-  placeholder.visible = false;
+  placeholder.visible = true;
   tilt.add(placeholder);
   const api = {
     root,
@@ -305,6 +306,9 @@ export function updateVisual(api, mode, t, dt, catalog) {
     const names = (catalog && catalog.clips) || {};
     const want = mode === 'cheer' ? (names.cheer || ['victory', 'cheer', 'yes'])
       : mode === 'sit' ? (names.sit || ['sitdown', 'sit', 'sitting', 'jail'])
+      : mode === 'punch' ? ['punch']
+      : mode === 'pickup' ? ['pickup', 'pick']
+      : mode === 'carry' ? ['walk_carry', 'carry', 'walk']
       : (mode === 'walk' ? (names.walk || ['walk', 'running', 'run'])
         : (names.idle || ['idle', 'stand', 'idle_01']));
     const clip = clipByNames(api.clips, want) || clipByNames(api.clips, names.idle || ['idle']) || null;
@@ -362,16 +366,26 @@ export function paintCharacter(model, tint) {
     const next = list.map(m => {
       const c = m.clone();
       const n = (m.name || '').toLowerCase();
-      if (n.includes('skin') || n.includes('face')) c.color.copy(SKIN_COLOR);
-      else if (n.includes('hair')) c.color.copy(HAIR_COLOR);
-      else if (n.includes('shirt') || n.includes('pants')) c.color.copy(outfit);
-      else if (n.includes('belt')) c.color.set('#5a3b28');
-      c.metalness = 0.04;
-      c.roughness = 0.78;
-      return c;
+      const nextMat = toonMat('#ffffff');
+      if (n.includes('skin') || n.includes('face')) nextMat.color.copy(SKIN_COLOR);
+      else if (n.includes('hair')) nextMat.color.copy(HAIR_COLOR);
+      else if (n.includes('shirt') || n.includes('pants')) nextMat.color.copy(outfit);
+      else if (n.includes('belt')) nextMat.color.set('#5a3b28');
+      else nextMat.color.copy((c.color.r + c.color.g + c.color.b) < 0.45 ? outfit : c.color);
+      return nextMat;
     });
     o.material = next.length === 1 ? next[0] : next;
   });
+  let best = null;
+  model.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const n = o.geometry && o.geometry.attributes.position ? o.geometry.attributes.position.count : 0;
+    if (!best || n > best.n) best = { mesh: o, n };
+  });
+  if (best && !best.mesh.userData.outlined) {
+    best.mesh.userData.outlined = true;
+    best.mesh.parent.add(skinnedOutline(best.mesh, 0.05));
+  }
 }
 
 function hashId(id) {
