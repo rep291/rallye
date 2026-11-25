@@ -77,7 +77,7 @@ function toggleMute() { Effekte.toggle(); updMute(); }
 function updMute() { $('mutebtn').textContent = Effekte.muted ? '🔇 Ton aus' : '🔊 Ton an'; } updMute();
 function toggleMenu() { menuOpen = !menuOpen; $('hostroot').classList.toggle('menuopen', menuOpen); $('menubtn').textContent = menuOpen ? '✕ Schließen' : '☰ Menü'; }
 $('hostroot').addEventListener('click', e => { if (menuOpen && e.target === $('hostroot')) toggleMenu(); });
-function emit(e, a) { sock.emit(e, a); }
+function emit(e, ...a) { sock.emit(e, ...a); }
 let lastRollAt = 0, lastPendKey = '', lastPhase = '', diceTimer = null;
 sock.on('state', s => { const prev = S; S = s; if (board) { effects(prev, s); render(s); } });
 function fieldLabel(pos, s) { return pos === 0 ? 'START' : pos === s.last ? 'ZIEL' : 'Feld ' + pos; }

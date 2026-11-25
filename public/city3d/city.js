@@ -458,8 +458,10 @@ export function mountCity(canvas, board, opts = {}) {
     if (pawn.prison) {
       carJob = { pawn, t: 0, phase: 'in' };
       const f = layout.points[pawn.index];
-      carFrom.copy(_a.set(f.x - f.tx * 10, 0, f.z - f.tz * 10));
-      carTo.copy(_a.set(f.x - f.tx * 2.1 + f.sx * 1.5, 0, f.z - f.tz * 2.1 + f.sz * 1.5));
+      if (f) {
+        carFrom.copy(_a.set(f.x - f.tx * 10, 0, f.z - f.tz * 10));
+        carTo.copy(_a.set(f.x - f.tx * 2.1 + f.sx * 1.5, 0, f.z - f.tz * 2.1 + f.sz * 1.5));
+      }
       built.car.visible = true;
       built.car.position.copy(carFrom);
     }
@@ -614,12 +616,12 @@ export function mountCity(canvas, board, opts = {}) {
         if (chase && pawn.prison && f) {
           // Von schräg oben in die offene Zelle, die Tür bleibt im Bild.
           const seat = pawn.prison.seat;
-          _desired.set(f.x * 0.42 + seat.x * 0.58, 7.4, f.z * 0.42 + seat.z * 0.58);
+          _desired.set(seat.x + 3.4, 5.6, seat.z + 3.4);
           _look.set(seat.x, 0.7, seat.z);
           wantLook = _look;
         } else {
-          dist = sliding ? 18 : inside ? 11 : 12;
-          height = sliding ? 14 : inside ? 9 : 9.4;
+          dist = sliding ? 18 : inside ? 13 : 15;
+          height = sliding ? 14 : inside ? 11 : 12;
           const hasFace = pawn.face.lengthSq() > 0.0001;
           const tx = hasFace ? pawn.face.x : ((f && f.tx) || 1);
           const tz = hasFace ? pawn.face.y : ((f && f.tz) || 0);

@@ -259,15 +259,15 @@ export function dressWorld(scene, layout, lib, built) {
     const a = layout.points[i], b = layout.points[i + 1];
     arrows.push({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, rot: Math.atan2(b.x - a.x, b.z - a.z) });
   }
-  const arrowGeo = new THREE.ConeGeometry(0.18, 0.55, 4);
+  const arrowGeo = new THREE.ConeGeometry(0.28, 0.72, 4);
   arrowGeo.rotateX(Math.PI / 2);
-  const arrowMesh = new THREE.InstancedMesh(arrowGeo, new THREE.MeshBasicMaterial({ color: '#ffe08a' }), Math.max(1, arrows.length));
+  const arrowMesh = new THREE.InstancedMesh(arrowGeo, new THREE.MeshBasicMaterial({ color: '#ffb703' }), Math.max(1, arrows.length));
   arrowMesh.userData.fullCount = arrows.length;
   const ad = new THREE.Object3D();
-  arrows.forEach((p, i) => { ad.position.set(p.x, 0.2, p.z); ad.rotation.set(-Math.PI / 2, 0, p.rot); ad.updateMatrix(); arrowMesh.setMatrixAt(i, ad.matrix); });
+  arrows.forEach((p, i) => { ad.position.set(p.x, 0.52, p.z); ad.rotation.y = p.rot; ad.updateMatrix(); arrowMesh.setMatrixAt(i, ad.matrix); });
   arrowMesh.instanceMatrix.needsUpdate = true;
   group.add(arrowMesh);
-  const pulse = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.42, 24), new THREE.MeshBasicMaterial({ color: 0xffe14a, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+  const pulse = new THREE.Mesh(new THREE.RingGeometry(1.45, 1.78, 28), new THREE.MeshBasicMaterial({ color: 0xffe14a, side: THREE.DoubleSide, transparent: true, opacity: 0.95 }));
   pulse.rotation.x = -Math.PI / 2;
   pulse.visible = false;
   group.add(pulse);
@@ -312,10 +312,14 @@ function addRoom(parent, b, roofs) {
   const H = b.open ? 1.35 : 2.85;
   const wall = new THREE.MeshLambertMaterial({ color: b.wall });
   const floorM = new THREE.MeshLambertMaterial({ color: b.floor });
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, D), floorM);
-  floor.position.y = 0.1;
-  floor.receiveShadow = true;
-  g.add(floor);
+  const aisle = 2.5;
+  const sideW = Math.max(0.6, (D - aisle) / 2);
+  for (const z of [-(aisle / 2 + sideW / 2), aisle / 2 + sideW / 2]) {
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.08, sideW), floorM);
+    floor.position.set(0, 0.08, z);
+    floor.receiveShadow = true;
+    g.add(floor);
+  }
   const t = 0.28;
   for (const z of [D / 2, -D / 2]) {
     const side = new THREE.Mesh(new THREE.BoxGeometry(L, H, t), wall);
@@ -634,7 +638,7 @@ export function stepCrowd(built, dt, scene) {
     if (fp) {
       const s = 1 + Math.sin(now * 5) * 0.1;
       built.pulse.visible = true;
-      built.pulse.position.set(fp.x, 0.42, fp.z);
+      built.pulse.position.set(fp.x, 0.58, fp.z);
       built.pulse.scale.set(s, s, 1);
     }
   } else if (built.pulse) built.pulse.visible = false;

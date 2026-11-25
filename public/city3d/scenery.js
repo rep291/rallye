@@ -136,10 +136,10 @@ export function buildCity(scene, layout, board) {
   ground.translate(cx, 0, cz);
   addGeo(solid, ground, '#63b85c');
 
-  ribbon(solid, pts, 2.05, 0.03, '#7dce6a');
-  ribbon(solid, pts, 1.55, 0.045, '#efe4d2');
-  ribbon(solid, pts, 1.15, 0.06, '#c9c3b6');
-  ribbon(solid, pts, 0.82, 0.08, '#3a4150');
+  ribbon(solid, pts, 1.28, 0.03, '#7dce6a');
+  ribbon(solid, pts, 0.98, 0.045, '#f3e2c4');
+  ribbon(solid, pts, 0.72, 0.06, '#d9d2c3');
+  ribbon(solid, pts, 0.52, 0.08, '#3e4654');
 
   const tileColor = {
     start: colors.start || '#2e9e5b',
@@ -148,15 +148,49 @@ export function buildCity(scene, layout, board) {
     frage: colors.frage || '#2f6fd6',
     rutsche: colors.rutsche || '#e03a8c',
     finanzpolizei: colors.finanzpolizei || '#5b3a8c',
-    normal: '#f4f0e4',
+    normal: '#ffe7a3',
   };
 
+  const tiles = new THREE.Group();
+  tiles.name = 'felder';
+  tiles.frustumCulled = false;
+  tiles.renderOrder = 2;
   for (const p of pts) {
     const col = tileColor[p.type] || tileColor.normal;
     const big = p.type === 'start' || p.type === 'ziel';
-    const rad = big ? 1.28 : 1.05;
-    addCyl(solid, rad + 0.16, rad + 0.16, 0.07, p.x, 0.1, p.z, '#ffe28a', 14);
-    addCyl(solid, rad, rad * 0.94, 0.28, p.x, 0.26, p.z, col, 14);
+    const rad = big ? 1.55 : 1.32;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(rad + 0.24, rad + 0.24, 0.16, 18), new THREE.MeshBasicMaterial({ color: '#ffe14a' }));
+    rim.position.set(p.x, 0.28, p.z);
+    rim.frustumCulled = false;
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * 0.96, 0.28, 18), new THREE.MeshBasicMaterial({ color: col }));
+    disc.position.set(p.x, 0.46, p.z);
+    disc.frustumCulled = false;
+    tiles.add(rim, disc);
+  }
+  scene.add(tiles);
+  const dashGeo = new THREE.BoxGeometry(0.16, 0.04, 0.42);
+  const dashes = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const n = Math.max(1, Math.round(len / 1.15));
+    for (let k = 0; k < n; k += 2) {
+      const u = (k + 0.35) / n;
+      dashes.push({ x: a.x + dx * u, z: a.z + dz * u, rot: Math.atan2(dx, dz) });
+    }
+  }
+  if (dashes.length) {
+    const dash = new THREE.InstancedMesh(dashGeo, new THREE.MeshBasicMaterial({ color: '#f7f4ea' }), dashes.length);
+    const dummy = new THREE.Object3D();
+    dashes.forEach((d, i) => {
+      dummy.position.set(d.x, 0.12, d.z);
+      dummy.rotation.y = d.rot;
+      dummy.updateMatrix();
+      dash.setMatrixAt(i, dummy.matrix);
+    });
+    dash.instanceMatrix.needsUpdate = true;
+    scene.add(dash);
   }
 
   const npcs = [];
