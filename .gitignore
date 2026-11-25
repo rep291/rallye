@@ -1,0 +1,5 @@
+node_modules/
+*.exe
+screens/
+_src/
+*.zip

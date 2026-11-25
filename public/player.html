@@ -1,0 +1,62 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Mitspielen – BERUFE-RALLYE</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><link rel="stylesheet" href="/style.css"></head>
+<body><div class="conn" id="conn">Verbindung unterbrochen – verbinde neu …</div>
+<div class="phone" id="app"></div>
+<script src="/vendor/socket.io.min.js"></script>
+<script>
+const $ = id => document.getElementById(id), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sock = io({ reconnectionDelay: 500, reconnectionDelayMax: 3000 });
+let S = null, myId = null, err = '', pickColor = null, pickTeam = null, joining = false;
+const KEY = 'brettspiel_token';
+function tryRejoin() { const t = localStorage.getItem(KEY); if (t) sock.emit('join', { token: t }, r => { if (r.ok) { myId = r.id; } else localStorage.removeItem(KEY); render(); }); }
+sock.on('connect', () => { $('conn').classList.remove('show'); tryRejoin(); });
+sock.on('disconnect', () => $('conn').classList.add('show'));
+sock.on('state', s => { S = s; if (myId && !s.players.some(p => p.id === myId)) { myId = null; localStorage.removeItem(KEY); } render(); });
+function join() {
+  const name = $('name').value.trim(); if (!name) { err = 'Bitte einen Namen eingeben.'; return render(); }
+  joining = true;
+  sock.emit('join', { name, color: pickColor, team: pickTeam }, r => { joining = false; if (r.ok) { myId = r.id; localStorage.setItem(KEY, r.token); err = ''; } else err = r.error; render(); });
+}
+function colorBtns() { return S.freeColors.map(c => `<button style="background:${c}" class="${c === pickColor ? 'sel' : ''}" onclick="pickColor='${c}';render()"></button>`).join(''); }
+function render() {
+  if (!S) return; const app = $('app'); const me = S.players.find(p => p.id === myId);
+  if (!me) {
+    if ($('name') && document.activeElement === $('name') && $('colorsBox')) { if (!S.freeColors.includes(pickColor)) pickColor = S.freeColors[0]; $('colorsBox').innerHTML = colorBtns(); return; }
+    const keep = $('name') ? $('name').value : '';
+    if (!pickColor || !S.freeColors.includes(pickColor)) pickColor = S.freeColors[0];
+    app.innerHTML = `<h1>BERUFE-RALLYE</h1><div class="hint">${S.phase === 'lobby' ? 'Gib deinen Namen ein und wähle eine Farbe.' : 'Das Spiel läuft schon – du kannst noch einsteigen.'}</div>
+      <input id="name" maxlength="20" placeholder="Dein Name" autocomplete="off" value="${esc(keep)}">
+      <div class="colors" id="colorsBox">${colorBtns()}</div>
+      ${S.teams ? `<select id="team" onchange="pickTeam=this.value">${S.teams.map(t => `<option ${t.name === pickTeam ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>` : ''}
+      <button id="joinBtn" class="ok" style="font-size:22px;padding:18px" onclick="join()" ${joining ? 'disabled' : ''}>Beitreten</button><div class="err">${esc(err)}</div>`;
+    $('name').onkeydown = e => { if (e.key === 'Enter') join(); };
+    return;
+  }
+  const cur = S.players[S.turn], myTurn = S.phase === 'playing' && cur && cur.id === myId, pd = S.pending;
+  let body = '';
+  if (S.phase === 'lobby') {
+    body = `<div class="status">Du bist dabei! Warte, bis die Spielleitung startet.<br><span class="hint">${S.players.length} Spieler in der Lobby</span></div>
+      <div class="hint">Farbe ändern:</div><div class="colors">${S.freeColors.map(c => `<button style="background:${c}" onclick="sock.emit('setColor','${c}')"></button>`).join('')}</div>
+      ${S.teams ? `<select onchange="sock.emit('setTeam',this.value)">${S.teams.map(t => `<option ${t.name === me.team ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select>` : ''}`;
+  } else if (S.phase === 'finished') {
+    const w = S.winner; const iWon = w && (w.playerId === myId || (w.team && w.team === me.team));
+    body = `<div class="status" style="text-align:center;font-size:26px">${iWon ? '🏆 Gewonnen!' : '🏁 Spiel vorbei'}<br><b>${esc(w.team || w.name)}</b> gewinnt.</div>`;
+  } else if (pd && pd.type === 'question' && pd.playerId === myId) {
+    if (pd.resolved) body = `<div class="status" style="font-size:24px;text-align:center">${pd.result ? '✅ ' + esc(pd.card.onCorrect) : '❌ ' + esc(pd.card.onWrong)}</div>`;
+    else body = `<div class="status"><b>Fragekarte ${esc(pd.card.nr ?? '')}</b><br><span style="white-space:pre-line">${esc(pd.card.question)}</span></div><div class="qa">${pd.card.answers.map((a, i) => `<button class="${pd.answer === i ? 'chosen' : ''}" ${pd.answer !== null ? 'disabled' : ''} onclick="sock.emit('answer',${i})"><b>${String.fromCharCode(97 + i)})</b> ${esc(a)}</button>`).join('')}</div>${pd.answer !== null ? '<div class="hint">Antwort abgegeben – jetzt wird besprochen, die Spielleitung entscheidet.</div>' : ''}`;
+  } else if (pd && pd.type === 'info') {
+    const who = S.players.find(x => x.id === pd.playerId);
+    body = `<div class="status">${pd.kind === 'rutsche' ? '↩' : '🚓'} <b>${esc(who && who.name)}</b><br>${esc(pd.text)}</div>`;
+  } else if (pd) {
+    const p = S.players.find(x => x.id === pd.playerId);
+    body = `<div class="status">${pd.type === 'action' ? '📋 Aktionskarte' : '❓ Fragekarte'} für <b>${esc(p && p.name)}</b> – schau auf den Beamer.${pd.type === 'action' ? `<br>${esc(pd.card.text)}<br><b>${esc(pd.card.effectLabel)}</b>` : ''}</div>`;
+  } else if (myTurn) {
+    body = `<button class="bigroll" id="rollBtn" ${S.busy ? 'disabled' : ''} onclick="sock.emit('roll')">🎲 ${me.jail ? S.need + ' würfeln!' : 'Würfeln'}</button><div class="hint" style="text-align:center">${me.jail ? '🚓 Finanzpolizei: Nur mit einer ' + S.need + ' geht es weiter.' : 'Du bist dran!'}</div>`;
+  } else {
+    body = `<div class="status">${esc(cur && cur.name)} ist dran …${me.skip ? '<br>⏸ Du setzt nächste Runde aus.' : ''}</div>`;
+  }
+  const lr = S.lastRoll && S.lastRoll.playerId === myId ? `<div class="hint">Letzter Wurf: ${S.lastRoll.value}</div>` : '';
+  app.innerHTML = `<div class="me"><span class="dot" style="background:${me.color}"></span>${esc(me.name)}${me.team ? ` <small>(${esc(me.team)})</small>` : ''}<span style="margin-left:auto">${me.pos === 0 ? 'START' : me.pos === S.last ? 'ZIEL' : 'Feld ' + me.pos}</span></div>${me.jail && !myTurn ? '<div class="hint">🚓 Finanzpolizei – im nächsten Zug eine ' + S.need + ' würfeln.</div>' : ''}${body}${lr}
+   ${S.phase === 'lobby' ? `<button class="ghost" onclick="sock.emit('leave');localStorage.removeItem('${KEY}');myId=null">Verlassen</button>` : ''}`;
+}
+</script></body></html>

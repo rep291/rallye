@@ -1,0 +1,35 @@
+:root{--bg:#10172a;--panel:#1b2540;--text:#f3f5fa;--muted:#9aa6c2;--accent:#f2a03d;--blue:#3d7ff2;--ok:#2e9e5b;--bad:#c23b3b}
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button{font:inherit;border:0;border-radius:12px;padding:.7em 1.2em;cursor:pointer;background:var(--blue);color:#fff;font-weight:600}
+button:disabled{opacity:.4;cursor:default}button.ok{background:var(--ok)}button.bad{background:var(--bad)}button.ghost{background:#ffffff1a}
+.pawn{transition:transform .2s}.pawn.active circle{stroke:#ffd400;stroke-width:3.5}
+/* Host */
+.host{display:grid;grid-template-columns:1fr 360px;height:100vh;gap:14px;padding:14px}
+.host .boardwrap{display:flex;align-items:center;justify-content:center;min-width:0}
+.host svg{width:100%;max-height:calc(100vh - 28px);border-radius:14px;box-shadow:0 10px 40px #0008}
+.side{background:var(--panel);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.join{text-align:center}.join img{width:200px;background:#fff;border-radius:10px;padding:6px}.join .url{font-size:22px;font-weight:700;word-break:break-all}
+.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.plist li{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:#ffffff0d}
+.plist li.cur{background:#ffd40033;outline:2px solid #ffd400}.dot{width:16px;height:16px;border-radius:50%;flex:none;border:2px solid #fff}
+.plist .pos{margin-left:auto;color:var(--muted);font-size:14px}.plist .x{padding:2px 8px;background:#ffffff1a;font-size:12px}
+.off{opacity:.45}.ctrl{display:flex;flex-wrap:wrap;gap:8px}.log{font-size:13px;color:var(--muted);list-style:none;padding:0;margin:0}
+.overlay{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:9}.overlay.show{display:flex}
+.card{width:min(820px,90vw);border-radius:24px;padding:40px;background:#fff;color:#1d2433;box-shadow:0 20px 80px #000;text-align:center;animation:pop .35s}
+.card .kind{font-size:22px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;display:inline-block;padding:6px 18px;border-radius:30px}
+.card h2{font-size:44px;margin:24px 0}.card .eff{font-size:28px;color:#555}.card .ans{display:grid;gap:12px;margin-top:20px}
+.card .ans div{font-size:28px;padding:14px;border-radius:14px;background:#eef2f8;text-align:left}.card .ans div.right{background:#c9f0d6;outline:3px solid var(--ok)}.card .ans div.chosen{outline:3px dashed #1d2433}
+.card .who{font-size:22px;color:#666;margin-top:6px}.card .res{font-size:40px;font-weight:800;margin-top:18px}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.winner{text-align:center}.winner h1{font-size:72px;margin:0}.winner ol{text-align:left;font-size:26px}
+.dicebig{font-size:64px;font-weight:800}
+/* Player */
+.phone{max-width:480px;margin:0 auto;padding:18px;min-height:100vh;display:flex;flex-direction:column;gap:16px}
+.phone h1{font-size:24px;margin:0}.phone input,.phone select{font:inherit;font-size:20px;padding:12px;border-radius:12px;border:0;width:100%}
+.colors{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.colors button{aspect-ratio:1;border-radius:50%;padding:0;border:3px solid transparent}.colors button.sel{border-color:#fff;transform:scale(1.1)}
+.bigroll{font-size:34px;padding:34px;border-radius:24px;background:var(--accent);width:100%}
+.status{background:var(--panel);border-radius:16px;padding:16px;font-size:18px}.me{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700}
+.qa{display:flex;flex-direction:column;gap:10px}.qa button{text-align:left;font-size:19px;padding:16px;background:#ffffff1a}.qa button.chosen{background:var(--blue)}
+.err{color:#ff8a8a}.conn{position:fixed;top:0;left:0;right:0;background:var(--bad);text-align:center;padding:6px;display:none}.conn.show{display:block}
+.hint{color:var(--muted);font-size:15px}
+.card.qcard{width:auto;max-width:96vw;padding:24px 30px;background:#1b2540;color:#fff}.card.qcard .who{color:#cfd6e6}.fkwrap .fk{box-shadow:0 8px 30px #0008}

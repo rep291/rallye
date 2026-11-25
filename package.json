@@ -1,0 +1,28 @@
+{
+  "name": "brettspiel-arbeitswelt",
+  "version": "0.1.0",
+  "description": "Kahoot-\u00e4hnliches Mehrspieler-Brettspiel (Prototyp)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/effects_test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.3.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "bin": "server.js",
+  "pkg": {
+    "targets": [
+      "node22-win-x64"
+    ]
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,14 @@
+/* Fragekarte im Design der Originale: weiss, schmaler schwarzer Rahmen, ? links oben, Nummer rechts oben */
+.fk{position:relative;width:90mm;height:60mm;background:#fff;color:#000;font-family:Arial,"Liberation Sans",Arimo,Helvetica,sans-serif;overflow:hidden;box-sizing:border-box}
+.fk .fk-frame{position:absolute;inset:2.5mm;border:0.45mm solid #000}
+.fk .fk-q,.fk .fk-nr{position:absolute;top:3.4mm;font-weight:700;font-size:12mm;line-height:1}
+.fk .fk-q{left:5.6mm}.fk .fk-nr{right:5.6mm}
+.fk .fk-body{position:absolute;left:6mm;right:6mm;top:17mm;bottom:4.6mm;font-size:3.5mm;line-height:1.22;text-align:left;hyphens:manual}
+.fk .fk-text{white-space:pre-line}
+.fk .fk-ans{margin-top:1.15em}
+.fk .fk-a{padding-left:1.45em;text-indent:-1.45em;margin:0 0 .12em}
+.fk .fk-a b{display:inline-block;width:1.45em;text-indent:0;font-weight:400}
+.fk .fk-a.chosen{outline:.5mm dashed #000;outline-offset:.4mm}
+.fk .fk-a.right{background:#d7f3df}
+.fk.fk-aktion .fk-body{top:18mm}
+.fk .fk-eff{margin-top:.55em}

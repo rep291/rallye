@@ -1,0 +1,945 @@
+{
+  "_hinweis": "Fragekarten 1-14 und Aktionskarten 1-27: Originaltexte (wortgleich). Fragekarten 15-20 und Aktionskarten 28-40: neue Entwürfe. Aktionskarte: text + effectLabel (Text auf der Karte) + effect (Spiellogik). correct:null bei Fragen = Spielleitung entscheidet. Effekt-Typen: move (steps +/-), moveTo (field), skip (turns), extraTurn, toStart, none.",
+  "action": [
+    {
+      "id": "A01",
+      "nr": 1,
+      "title": "Aktionskarte 1",
+      "text": "Deine Firma baut Arbeitsplätze ab. Auch dein Arbeitsplatz ist gefährdet.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_01.png"
+    },
+    {
+      "id": "A02",
+      "nr": 2,
+      "title": "Aktionskarte 2",
+      "text": "Du hast deine Berufsausbildung mit Erfolg bestanden.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_02.png"
+    },
+    {
+      "id": "A03",
+      "nr": 3,
+      "title": "Aktionskarte 3",
+      "text": "Deine Arbeit macht dir großen Spaß. Mit deiner Chefin kommst du sehr gut aus und mit einigen Kollegen verbringst du sogar deine Freizeit.",
+      "effectLabel": "2 Felder vor!",
+      "effect": {
+        "type": "move",
+        "steps": 2
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_03.png"
+    },
+    {
+      "id": "A04",
+      "nr": 4,
+      "title": "Aktionskarte 4",
+      "text": "Deine Arbeit ist körperlich sehr belastend. Dein Arzt rät dir aus Gesundheitsgründen zu einem Berufswechsel.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_04.png"
+    },
+    {
+      "id": "A05",
+      "nr": 5,
+      "title": "Aktionskarte 5",
+      "text": "Um eine verantwortungsvollere und besser bezahlte Arbeit zu bekommen, entschließt du dich zu einer Weiterbildung.",
+      "effectLabel": "2 Felder vor!",
+      "effect": {
+        "type": "move",
+        "steps": 2
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_05.png"
+    },
+    {
+      "id": "A06",
+      "nr": 6,
+      "title": "Aktionskarte 6",
+      "text": "Auf ein Inserat bewirbst du dich um eine leitende Stelle. Aufgrund deiner Berufspraxis und deines Fachwissens bekommst du die Stelle.",
+      "effectLabel": "2 Felder vor!",
+      "effect": {
+        "type": "move",
+        "steps": 2
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_06.png"
+    },
+    {
+      "id": "A07",
+      "nr": 7,
+      "title": "Aktionskarte 7",
+      "text": "Nach bestandener Lehrabschlussprüfung eröffnet dir dein Chef, dass er dich nicht über die Behaltefrist hinaus beschäftigen kann.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_07.png"
+    },
+    {
+      "id": "A08",
+      "nr": 8,
+      "title": "Aktionskarte 8",
+      "text": "Deine Eltern drängten dich, weiter zur Schule zu gehen. Du aber wolltest unabhängig sein und hast dich für eine Lehrausbildung entschlossen. Heute bist du froh über diese Entscheidung.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_08.png"
+    },
+    {
+      "id": "A09",
+      "nr": 9,
+      "title": "Aktionskarte 9",
+      "text": "Du hast verschlafen. Daher versäumst du ein wichtiges Treffen mit einem Kunden. Deine Chefin ist sauer.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_09.png"
+    },
+    {
+      "id": "A10",
+      "nr": 10,
+      "title": "Aktionskarte 10",
+      "text": "Obwohl du dein Bestes gibst, hat dein Chef ständig etwas an deiner Arbeit auszusetzen.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_10.png"
+    },
+    {
+      "id": "A11",
+      "nr": 11,
+      "title": "Aktionskarte 11",
+      "text": "Dein Ausbildner ist seit sechs Wochen im Krankenstand. Bis jetzt fühlt sich niemand für deine Ausbildung verantwortlich. Deine Leistungen in der Berufsschule verschlechtern sich.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_11.png"
+    },
+    {
+      "id": "A12",
+      "nr": 12,
+      "title": "Aktionskarte 12",
+      "text": "Lernen zählt nicht zu deinen Stärken. In der Berufsschule hast du in drei Gegenständen ein „Nicht genügend“.",
+      "effectLabel": "2 Felder zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -2
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_12.png"
+    },
+    {
+      "id": "A13",
+      "nr": 13,
+      "title": "Aktionskarte 13",
+      "text": "Die Arbeitsbedingungen in deiner Firma werden immer schlechter. Jeder Arbeitstag kostet dich große Überwindung.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_13.png"
+    },
+    {
+      "id": "A14",
+      "nr": 14,
+      "title": "Aktionskarte 14",
+      "text": "Die Firma, bei welcher du beschäftigt bist, wurde neu übernommen. Dies führte zu einer deutlichen Verbesserung der Arbeitssituation.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_14.png"
+    },
+    {
+      "id": "A15",
+      "nr": 15,
+      "title": "Aktionskarte 15",
+      "text": "Dein Mann nimmt einen sehr guten Job im Ausland an. Ihr beschließt, mit eurem fünfjährigen Sohn zu übersiedeln. Deinen Halbtagsjob musst du daher aufgeben.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_15.png"
+    },
+    {
+      "id": "A16",
+      "nr": 16,
+      "title": "Aktionskarte 16",
+      "text": "Nach achtmonatiger Lehrzeit bekommst du eine Allergie. Ein Berufswechsel ist daher unvermeidlich.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_16.png"
+    },
+    {
+      "id": "A17",
+      "nr": 17,
+      "title": "Aktionskarte 17",
+      "text": "Deine Berufswahl hast du dem Zufall überlassen. Nach wenigen Wochen weißt du, dass dieser Beruf nicht deinen Interessen entspricht.",
+      "effectLabel": "2 Felder zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -2
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_17.png"
+    },
+    {
+      "id": "A18",
+      "nr": 18,
+      "title": "Aktionskarte 18",
+      "text": "Deine Ausbildnerin ist von deinem Fleiß und deinem Geschick begeistert!",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_18.png"
+    },
+    {
+      "id": "A19",
+      "nr": 19,
+      "title": "Aktionskarte 19",
+      "text": "Einem Kunden hast du versehentlich eine falsche Rechnung ausgestellt. Er beschwert sich bei deinem Chef.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_19.png"
+    },
+    {
+      "id": "A20",
+      "nr": 20,
+      "title": "Aktionskarte 20",
+      "text": "Durch deine Leistungen wurde man auf dich aufmerksam. Ein interessanter und gut bezahlter Job wird dir angeboten.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_20.png"
+    },
+    {
+      "id": "A21",
+      "nr": 21,
+      "title": "Aktionskarte 21",
+      "text": "Deine Arbeit belastet dich psychisch sehr. Kopfschmerzen, Schlafstörungen und Magenschmerzen sind die Folge.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_21.png"
+    },
+    {
+      "id": "A22",
+      "nr": 22,
+      "title": "Aktionskarte 22",
+      "text": "Da du in deiner Heimatgemeinde keinen Arbeitsplatz findest, bist du gezwungen zu pendeln. Die Fahrzeit zur Arbeitsstelle und zurück beträgt drei Stunden täglich.",
+      "effectLabel": "1 Feld zurück.",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_22.png"
+    },
+    {
+      "id": "A23",
+      "nr": 23,
+      "title": "Aktionskarte 23",
+      "text": "Deine Eltern erkranken. Um dich um sie kümmern zu können, suchst du einen Halbtagsjob.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_23.png"
+    },
+    {
+      "id": "A24",
+      "nr": 24,
+      "title": "Aktionskarte 24",
+      "text": "Bei einem Lehrlingswettbewerb wird deine Arbeit ausgezeichnet!",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_24.png"
+    },
+    {
+      "id": "A25",
+      "nr": 25,
+      "title": "Aktionskarte 25",
+      "text": "Du wirst befördert.",
+      "effectLabel": "2 Felder vor!",
+      "effect": {
+        "type": "move",
+        "steps": 2
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_25.png"
+    },
+    {
+      "id": "A26",
+      "nr": 26,
+      "title": "Aktionskarte 26",
+      "text": "Nachdem du die letzten Jahre Hausfrau warst, versuchst du einen Wiedereinstieg ins Berufsleben. Du besuchst einen Kurs.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_26.png"
+    },
+    {
+      "id": "A27",
+      "nr": 27,
+      "title": "Aktionskarte 27",
+      "text": "Zu deinen Kollegen findest du keinen Anschluss. Das Betriebsklima belastet dich sehr.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "original",
+      "image": "/assets/cards/aktion_27.png"
+    },
+    {
+      "id": "A28",
+      "nr": 28,
+      "title": "Aktionskarte 28",
+      "text": "Bei einem Schnuppertag lernst du deinen Wunschberuf kennen. Danach weißt du genau, dass er zu dir passt.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_28.png"
+    },
+    {
+      "id": "A29",
+      "nr": 29,
+      "title": "Aktionskarte 29",
+      "text": "Neben deiner Lehre machst du die Lehre mit Matura. Das kostet viel Freizeit, eröffnet dir aber neue Möglichkeiten.",
+      "effectLabel": "2 Felder vor!",
+      "effect": {
+        "type": "move",
+        "steps": 2
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_29.png"
+    },
+    {
+      "id": "A30",
+      "nr": 30,
+      "title": "Aktionskarte 30",
+      "text": "Du trägst bei der Arbeit keine Schutzbrille, obwohl sie vorgeschrieben ist. Ein Splitter verletzt dein Auge.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_30.png"
+    },
+    {
+      "id": "A31",
+      "nr": 31,
+      "title": "Aktionskarte 31",
+      "text": "Du postest abfällige Bemerkungen über deine Firma im Internet. Dein Chef erfährt davon.",
+      "effectLabel": "2 Felder zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -2
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_31.png"
+    },
+    {
+      "id": "A32",
+      "nr": 32,
+      "title": "Aktionskarte 32",
+      "text": "Während deiner Lehre nimmst du an einem Auslandspraktikum teil. Deine Sprachkenntnisse und dein Selbstvertrauen wachsen.",
+      "effectLabel": "2 Felder vor!",
+      "effect": {
+        "type": "move",
+        "steps": 2
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_32.png"
+    },
+    {
+      "id": "A33",
+      "nr": 33,
+      "title": "Aktionskarte 33",
+      "text": "Nach dem Verlust deines Arbeitsplatzes besuchst du einen Kurs des Arbeitsmarktservice. Kurz danach findest du eine neue Stelle.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_33.png"
+    },
+    {
+      "id": "A34",
+      "nr": 34,
+      "title": "Aktionskarte 34",
+      "text": "Ohne Vorbereitung verlangst du von deiner Chefin mehr Gehalt. Das Gespräch verläuft enttäuschend.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_34.png"
+    },
+    {
+      "id": "A35",
+      "nr": 35,
+      "title": "Aktionskarte 35",
+      "text": "Du kommst in letzter Zeit öfter zu spät zur Arbeit. Dein Chef ermahnt dich.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_35.png"
+    },
+    {
+      "id": "A36",
+      "nr": 36,
+      "title": "Aktionskarte 36",
+      "text": "Dein Team schließt ein schwieriges Projekt rechtzeitig ab. Die Firmenleitung lobt euch vor der ganzen Belegschaft.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_36.png"
+    },
+    {
+      "id": "A37",
+      "nr": 37,
+      "title": "Aktionskarte 37",
+      "text": "Wegen zu schnellen Fahrens verlierst du deinen Führerschein. Für deine Arbeit im Außendienst brauchst du ihn aber.",
+      "effectLabel": "1 Runde aussetzen!",
+      "effect": {
+        "type": "skip",
+        "turns": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_37.png"
+    },
+    {
+      "id": "A38",
+      "nr": 38,
+      "title": "Aktionskarte 38",
+      "text": "Du wirst von Kollegen ausgegrenzt. Du sprichst mit dem Betriebsrat und gemeinsam findet ihr eine Lösung.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_38.png"
+    },
+    {
+      "id": "A39",
+      "nr": 39,
+      "title": "Aktionskarte 39",
+      "text": "Du bist krank, vergisst aber, dich rechtzeitig in der Firma krankzumelden. Dein Chef ist verärgert.",
+      "effectLabel": "1 Feld zurück!",
+      "effect": {
+        "type": "move",
+        "steps": -1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_39.png"
+    },
+    {
+      "id": "A40",
+      "nr": 40,
+      "title": "Aktionskarte 40",
+      "text": "Du hast einen Erste-Hilfe-Kurs besucht. Als sich ein Kollege verletzt, kannst du sofort richtig helfen.",
+      "effectLabel": "1 Feld vor!",
+      "effect": {
+        "type": "move",
+        "steps": 1
+      },
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/aktion_40.png"
+    }
+  ],
+  "question": [
+    {
+      "id": "F01",
+      "nr": 1,
+      "title": "Fragekarte 1",
+      "question": "Du bist arbeitslos und findest in deinem Beruf keine Beschäftigungsmöglichkeit.\nWas unternimmst du?",
+      "answers": [
+        "Du lässt den Dingen ihren Lauf.",
+        "Du versuchst in einem verwandten Beruf unterzukommen und entschließt dich zu einer Umschulung.",
+        "Du nimmst eine Arbeit als Hilfskraft an."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_01.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F02",
+      "nr": 2,
+      "title": "Fragekarte 2",
+      "question": "Seit geraumer Zeit wirst du von einem Kollegen belästigt.\nWas machst du?",
+      "answers": [
+        "Du beschwerst dich bei deinem Chef und anderen Kollegen darüber.",
+        "Du erzählst niemandem davon und hoffst, dass der Kollege sein Verhalten von selbst ändert.",
+        "Du suchst bei der Beratungsstelle der Arbeiterkammer Rat."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_02.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F03",
+      "nr": 3,
+      "title": "Fragekarte 3",
+      "question": "Deine Firma stellt auf ein neues Computerprogramm um.\nWas machst du?",
+      "answers": [
+        "Du besuchst einen Kurs.",
+        "Du wechselst die Firma.",
+        "Du wartest einfach ab."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_03.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F04",
+      "nr": 4,
+      "title": "Fragekarte 4",
+      "question": "In deiner Firma werden konstant Arbeitskräfte abgebaut. Was unternimmst du?",
+      "answers": [
+        "Du wartest ab, bis du an der Reihe bist.",
+        "Du vereinbarst ein klärendes Gespräch mit der Firmenleitung.",
+        "Du bewirbst dich sicherheitshalber bei anderen Unternehmen."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_04.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F05",
+      "nr": 5,
+      "title": "Fragekarte 5",
+      "question": "In deiner Firma wirst du immer wieder zu berufsfremden Arbeiten herangezogen.\nWas unternimmst du?",
+      "answers": [
+        "Du sprichst mit deinem Ausbildner darüber.",
+        "Du wendest dich an die Arbeiterkammer.",
+        "Du hoffst, dass sich die Lage bessert."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_05.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F06",
+      "nr": 6,
+      "title": "Fragekarte 6",
+      "question": "Im zweiten Lehrjahr erkennst du, dass die Zukunftschancen in deinem Beruf sehr schlecht sind. Wie reagierst du?",
+      "answers": [
+        "Du brichst deine Ausbildung ab.",
+        "Du machst dir darüber keine Gedanken.",
+        "Du versuchst zeitgerecht durch zusätzliche Weiterbildung Fachwissen zu erlangen."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_06.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F07",
+      "nr": 7,
+      "title": "Fragekarte 7",
+      "question": "Seit neun Jahren bist du ausschließlich Hausfrau und Mutter. Jetzt ist dein Mann plötzlich arbeitslos. Du beschließt, wieder ins Arbeitsleben einzusteigen.\nWas unternimmst du?",
+      "answers": [
+        "Du gehst zum Arbeitsmarktservice und lässt dich beraten.",
+        "Du versuchst als angelernte Hilfskraft Arbeit zu finden.",
+        "Du versuchst in deinem ehemaligen Beruf eine Anstellung zu finden und schickst Bewerbungsschreiben an mehrere Firmen."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_07.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F08",
+      "nr": 8,
+      "title": "Fragekarte 8",
+      "question": "Ein Arbeitsunfall macht eine weitere Ausübung deines Berufes unmöglich.\nWie reagierst du?",
+      "answers": [
+        "Du überlegst eine Frühpensionierung.",
+        "Du willst unbedingt weiterarbeiten und lässt dich umschulen.",
+        "Du suchst Rat beim Arbeitsmarktservice."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_08.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F09",
+      "nr": 9,
+      "title": "Fragekarte 9",
+      "question": "Seit vier Monaten bist du nun arbeitslos. Deine Familie macht dir Vorwürfe und die finanzielle Situation verschlechtert sich täglich. Was unternimmst du?",
+      "answers": [
+        "Du gibst anderen die Schuld und suchst im Alkohol Trost.",
+        "Du versuchst, Gelegenheitsjobs zu finden oder „pfuschst“.",
+        "Du bewirbst dich laufend bei Firmen und versuchst, durch Umschulung bzw. Weiterbildung deine Chancen zu vergrößern."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_09.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F10",
+      "nr": 10,
+      "title": "Fragekarte 10",
+      "question": "In deinem Wohngebiet gibt es kaum Lehrstellen.\nWas tust du?",
+      "answers": [
+        "Du nimmst was du bekommst.",
+        "Du pendelst, um eine Ausbildung in deinem Wunschberuf machen zu können.",
+        "Du hoffst auf einen glücklichen Zufall."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_10.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F11",
+      "nr": 11,
+      "title": "Fragekarte 11",
+      "question": "Ein Kollege macht sich ständig über dich lustig und provoziert dich.\nWas unternimmst du?",
+      "answers": [
+        "Du beschwerst dich bei deinem Chef.",
+        "Du versuchst, ihn zu ignorieren.",
+        "Dir reicht's! Beim nächsten Vorfall schlägst du ihn nieder."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_11.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F12",
+      "nr": 12,
+      "title": "Fragekarte 12",
+      "question": "Die Auftragslage ist so gut, dass dich deine Chefin bittet, täglich bis zu zwei Überstunden zu machen. Wie reagierst du?",
+      "answers": [
+        "Du stimmst aus finanziellen Überlegungen zu.",
+        "Deine Freizeit ist dir wichtiger. Du lehnst ab.",
+        "Du einigst dich mit deiner Chefin auf einen festgelegten Zeitraum."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_12.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F13",
+      "nr": 13,
+      "title": "Fragekarte 13",
+      "question": "Du beginnst eine Lehre als Restaurantfachmann. Dein Ausbildner rät dir zu einer Doppellehre Restaurantfachmann / Koch. Wie entscheidest du dich?",
+      "answers": [
+        "Du lehnst ab, da dir die Lehrzeit zu lang ist.",
+        "Du stimmst zu, weil du dir größere Zukunftschancen erhoffst."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_13.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F14",
+      "nr": 14,
+      "title": "Fragekarte 14",
+      "question": "Dein Chef möchte, dass du einen Fremdsprachenkurs besuchst. Dieser findet zu einem Teil in deiner Freizeit statt. Wie entscheidest du dich?",
+      "answers": [
+        "Du stimmst zu, da dir dieser Kurs ein interessantes Aufgabengebiet erschließt.",
+        "Du lehnst ab. Deine Sprachkenntnisse waren bis jetzt auch ausreichend."
+      ],
+      "correct": null,
+      "source": "original",
+      "image": "/assets/cards/frage_14.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F15",
+      "nr": 15,
+      "title": "Fragekarte 15",
+      "question": "In drei Monaten ist deine Lehrabschlussprüfung. In einigen Bereichen fühlst du dich noch unsicher.\nWas unternimmst du?",
+      "answers": [
+        "Du bittest deinen Ausbildner, dir die schwierigen Bereiche noch einmal zu zeigen, und bereitest dich gezielt vor.",
+        "Du lässt es einfach auf dich zukommen.",
+        "Du meldest dich gar nicht erst zur Prüfung an."
+      ],
+      "correct": null,
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/frage_15.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F16",
+      "nr": 16,
+      "title": "Fragekarte 16",
+      "question": "Deine Noten in der Berufsschule werden immer schlechter.\nWie reagierst du?",
+      "answers": [
+        "Du schwänzt die Berufsschule, weil es ohnehin nichts mehr bringt.",
+        "Du sprichst mit deinen Lehrern und lernst gemeinsam mit Mitschülern nach.",
+        "Du hoffst, dass es im nächsten Semester von selbst besser wird."
+      ],
+      "correct": null,
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/frage_16.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F17",
+      "nr": 17,
+      "title": "Fragekarte 17",
+      "question": "Am Monatsende stellst du fest, dass deine Überstunden nicht abgerechnet wurden.\nWas machst du?",
+      "answers": [
+        "Du sagst nichts, um keinen Ärger zu bekommen.",
+        "Du sprichst deinen Chef darauf an und lässt dich bei Bedarf von der Arbeiterkammer beraten.",
+        "Du arbeitest ab sofort langsamer, damit es sich ausgleicht."
+      ],
+      "correct": null,
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/frage_17.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F18",
+      "nr": 18,
+      "title": "Fragekarte 18",
+      "question": "Du hast deine Lehre abgeschlossen, aber dein Lehrbetrieb kann dich nicht übernehmen.\nWas unternimmst du?",
+      "answers": [
+        "Du wartest ab, ob sich der Betrieb doch noch meldet.",
+        "Du machst deinem Ärger über den Chef in sozialen Netzwerken Luft.",
+        "Du meldest dich beim Arbeitsmarktservice und bewirbst dich gezielt bei anderen Betrieben."
+      ],
+      "correct": null,
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/frage_18.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F19",
+      "nr": 19,
+      "title": "Fragekarte 19",
+      "question": "Ein Kunde beschwert sich lautstark über einen Fehler, den ein Kollege gemacht hat.\nWie reagierst du?",
+      "answers": [
+        "Du schreist zurück, weil du nichts dafür kannst.",
+        "Du gehst weg und überlässt den Kunden sich selbst.",
+        "Du hörst ruhig zu und holst deinen Vorgesetzten, um das Problem gemeinsam zu lösen."
+      ],
+      "correct": null,
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/frage_19.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    },
+    {
+      "id": "F20",
+      "nr": 20,
+      "title": "Fragekarte 20",
+      "question": "Bei der Arbeit fällt dir auf, dass eine Maschine nicht richtig funktioniert und gefährlich werden könnte.\nWas unternimmst du?",
+      "answers": [
+        "Du meldest den Fehler sofort deinem Vorgesetzten und arbeitest nicht weiter an der Maschine.",
+        "Du versuchst, die Maschine selbst zu reparieren, obwohl du dich damit nicht auskennst.",
+        "Du arbeitest weiter, es wird schon nichts passieren."
+      ],
+      "correct": null,
+      "source": "neu (Entwurf)",
+      "image": "/assets/cards/frage_20.png",
+      "onCorrect": {
+        "type": "move",
+        "steps": 2
+      },
+      "onWrong": {
+        "type": "none"
+      }
+    }
+  ]
+}

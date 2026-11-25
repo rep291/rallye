@@ -1,0 +1,15 @@
+# Render Blueprint: BERUFE-RALLYE als kostenloser Web Service (Free, Frankfurt)
+services:
+  - type: web
+    name: berufe-rallye
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST_PIN
+        sync: false   # beim Anlegen im Render-Dashboard eine eigene PIN eintragen (z. B. 6 Ziffern)

@@ -1,0 +1,7 @@
+node_modules
+*.exe
+screens
+_src
+*.pdf
+tests
+tools

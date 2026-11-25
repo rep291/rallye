@@ -1,0 +1,81 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>BERUFE-RALLYE – Spielleitung</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/fragekarte.css"></head>
+<body><div class="host">
+ <div class="boardwrap"><svg id="board"></svg></div>
+ <div class="side">
+  <div class="join" id="join"><div class="hint" id="joinhint">Mit dem Handy beitreten (gleiches WLAN):</div><img id="qr" alt="QR-Code"><div class="url" id="url"></div><div class="hint" id="alt"></div></div>
+  <div class="hint" style="font-size:12px">Kartensatz der App: 40 Aktion · 20 Fragen</div><div id="phase" style="font-size:20px;font-weight:700"></div>
+  <div id="dice" class="dicebig" style="text-align:center"></div>
+  <ul class="plist" id="plist"></ul>
+  <div class="ctrl" id="ctrl"></div>
+  <ul class="log" id="log"></ul>
+ </div>
+</div>
+<div class="overlay" id="pinov" style="z-index:20"><div class="card" style="max-width:460px"><h2 style="margin:0 0 10px">Spielleitung</h2><p>Bitte die Spielleitungs-PIN eingeben.</p><input id="pin" inputmode="numeric" autocomplete="off" style="font-size:34px;text-align:center;width:100%;padding:10px;border-radius:12px;border:2px solid #ccd" maxlength="12"><div class="err" id="pinerr" style="color:#c23b3b;min-height:1.4em;margin:8px 0"></div><button class="ok" style="font-size:22px;width:100%" onclick="sendPin()">Anmelden</button></div></div>
+<div class="overlay" id="ov"><div class="card" id="card"></div></div>
+<script src="/vendor/socket.io.min.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script>
+<script>
+const $ = id => document.getElementById(id), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let board, view, S; const sock = io();
+async function loadCfg() { board = (await (await fetch('/api/config')).json()).board; view = BoardView($('board'), board); if (S) render(S); }
+fetch('/api/join-info').then(r => r.json()).then(j => { $('qr').src = j.qr; $('url').textContent = j.url; if (j.online) $('joinhint').textContent = 'Mit dem Handy beitreten (Internet, kein WLAN nötig):'; $('alt').textContent = j.alternatives.length ? 'Falls nicht erreichbar: ' + j.alternatives.join(', ') : ''; });
+loadCfg(); sock.on('reloadConfig', loadCfg);
+sock.on('hostError', m => alert(m));
+let hostOk = false;
+function sendPin(p) { const pin = p || $('pin').value.trim(); if (!pin) return; sock.emit('host:auth', pin, r => { if (r.ok) { sessionStorage.setItem('hostPin', pin); $('pinerr').textContent = ''; } else { sessionStorage.removeItem('hostPin'); $('pinerr').textContent = r.error; } }); }
+sock.on('hostAuth', a => { hostOk = !a.required; $('pinov').classList.toggle('show', a.required); if (a.required) { const sp = sessionStorage.getItem('hostPin'); if (sp) sendPin(sp); else setTimeout(() => $('pin').focus(), 50); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && $('pinov').classList.contains('show')) sendPin(); });
+sock.on('state', s => { S = s; if (board) render(s); });
+const emit = (e, a) => sock.emit(e, a);
+function render(s) {
+  const cur = s.players[s.turn];
+  view.update(s.players, s.stepMs || board.rules.stepMs, s.phase === 'playing' && cur ? cur.id : null);
+  $('phase').textContent = s.phase === 'lobby' ? `Lobby – ${s.players.length} Spieler` : s.phase === 'playing' ? `Am Zug: ${cur ? cur.name : '-'}` : 'Spiel beendet';
+  $('join').style.display = s.phase === 'playing' ? 'none' : '';
+  $('dice').textContent = s.lastRoll && s.phase === 'playing' ? '🎲 ' + s.lastRoll.value : '';
+  $('plist').innerHTML = s.players.map((p, i) => `<li class="${s.phase === 'playing' && i === s.turn ? 'cur' : ''} ${p.connected ? '' : 'off'}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.team ? ` <small>(${esc(p.team)})</small>` : ''}${p.skip ? ' ⏸' : ''}${p.jail ? ' 🚓 (6 nötig)' : ''}${p.connected ? '' : ' 📵'}<span class="pos">${p.pos === 0 ? 'START' : p.pos === s.last ? 'ZIEL' : 'Feld ' + p.pos}</span><button class="x" onclick="if(confirm('Entfernen?'))emit('host:kick','${p.id}')">✕</button></li>`).join('');
+  let c = '';
+  if (s.phase === 'lobby') c += `<button class="ok" ${s.players.length < board.rules.minPlayers ? 'disabled' : ''} onclick="emit('host:start')">▶ Spiel starten</button>`;
+  if (s.phase === 'playing') c += `<button class="ghost" onclick="emit('host:rollFor')" ${s.pending || s.busy ? 'disabled' : ''}>🎲 Für ${esc(cur && cur.name)} würfeln</button><button class="ghost" onclick="emit('host:skipTurn')">⏭ Zug überspringen</button>`;
+  if (s.phase !== 'lobby') c += `<button class="ghost" onclick="emit('host:reset',true)">↺ Neue Runde</button>`;
+  c += `<button class="ghost" onclick="if(confirm('Alle Spieler entfernen?'))emit('host:reset',false)">🗑 Neues Spiel</button><button class="ghost" onclick="emit('host:reload')">⟳ Karten/Brett neu laden</button>`;
+  $('ctrl').innerHTML = c;
+  $('log').innerHTML = s.log.map(l => `<li>${esc(l.msg)}</li>`).join('');
+  renderOverlay(s);
+}
+function renderOverlay(s) {
+  const ov = $('ov'), card = $('card'), pd = s.pending;
+  if (s.phase === 'finished' && s.winner) {
+    ov.classList.add('show'); card.classList.remove('qcard');
+    card.innerHTML = `<div class="winner"><div style="font-size:90px">🏆</div><h1>${esc(s.winner.team ? s.winner.team + ' gewinnt!' : s.winner.name + ' gewinnt!')}</h1>${s.winner.team ? `<div class="who">${esc(s.winner.name)} ist als Erste/r im Ziel</div>` : ''}<ol>${s.winner.ranking.map(r => `<li><span class="dot" style="display:inline-block;background:${r.color}"></span> ${esc(r.name)} – ${r.pos === s.last ? 'ZIEL' : 'Feld ' + r.pos}</li>`).join('')}</ol><button class="ok" onclick="emit('host:reset',true)">Neue Runde</button></div>`;
+    return;
+  }
+  if (!pd) { ov.classList.remove('show'); return; }
+  const p = s.players.find(x => x.id === pd.playerId) || { name: '?' };
+  ov.classList.add('show');
+  if (pd.type === 'info') {
+    card.classList.remove('qcard');
+    const sym = pd.kind === 'rutsche' ? '↩' : '🚓';
+    card.innerHTML = `<div style="font-size:76px">${sym}</div><div class="who">${esc(p.name)}</div><h2>${esc(pd.text)}</h2>`; return;
+  }
+  if (pd.type === 'action') {
+    card.classList.add('qcard');
+    card.innerHTML = `<div class="who" style="margin:0 0 10px">Aktionskarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.htmlAction(pd.card)}</div>`;
+    const fk = card.querySelector('.fk'); Fragekarte.fit(fk);
+    const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.62 / fk.offsetHeight);
+    fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left';
+    const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto';
+  } else {
+    const L = i => String.fromCharCode(97 + i) + ')';
+    const res = pd.resolved ? `<div class="res" style="color:${pd.result ? 'var(--ok)' : 'var(--bad)'}">${pd.result ? '✅ ' + esc(pd.card.onCorrect) : '❌ ' + esc(pd.card.onWrong)}</div>`
+      : `<div class="who">${pd.answer === null ? esc(p.name) + ' wählt am Handy …' : esc(p.name) + ' wählt ' + L(pd.answer) + ' – kurz besprechen, dann entscheidet die Spielleitung.'}</div><div class="ctrl" style="justify-content:center;margin-top:14px"><button class="ok" onclick="emit('host:judge',true)">Richtig (${esc(pd.card.onCorrect)})</button><button class="bad" onclick="emit('host:judge',false)">Falsch (${esc(pd.card.onWrong)})</button></div>`;
+    card.classList.add('qcard');
+    card.innerHTML = `<div class="who" style="margin:0 0 10px">Fragekarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.html(pd.card, { chosen: pd.answer, right: pd.card.correct })}</div>${res}`;
+    const fk = card.querySelector('.fk'); Fragekarte.fit(fk);
+    const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.62 / fk.offsetHeight);
+    fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left';
+    const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto';
+    return;
+  }
+}
+</script></body></html>
