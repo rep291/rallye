@@ -1,8 +1,15 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8"><title>BERUFE-RALLYE – Spielleitung</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/fragekarte.css"></head>
 <body><div class="host">
- <div class="boardwrap"><svg id="board"></svg></div>
+ <div class="boardwrap" id="boardwrap"><svg id="board"></svg><canvas id="city3d" class="city" aria-label="3D-Stadt"></canvas><div id="cityhud" class="cityhud" hidden><b id="citytitle">3D-Stadt</b><span id="citysub"></span></div></div>
  <div class="side">
+  <div class="viewswitch">
+   <button type="button" class="ghost sel" id="btn2d">2D-Brett</button>
+   <button type="button" class="ghost" id="btn3d">3D-Stadt</button>
+   <label class="hint" title="Automatisch startet auf Mittel. Ausgelegt für den Kurslaptop am Beamer (1080p).">Qualität <select id="qselect" aria-label="Qualität der 3D-Stadt"><option value="auto">Automatisch</option><option value="niedrig">Niedrig</option><option value="mittel">Mittel</option><option value="hoch">Hoch</option></select></label>
+   <span id="fpslabel" class="fps"></span>
+  </div>
+  <div id="citynote" class="citynote" hidden></div>
   <div class="join" id="join"><div class="hint" id="joinhint">Mit dem Handy beitreten (gleiches WLAN):</div><img id="qr" alt="QR-Code"><div class="url" id="url"></div><div class="hint" id="alt"></div></div>
   <div class="hint" style="font-size:12px">Kartensatz der App: 40 Aktion · 20 Fragen</div><div id="phase" style="font-size:20px;font-weight:700"></div>
   <div id="dice" class="dicebig" style="text-align:center"></div>
@@ -13,11 +20,21 @@
 </div>
 <div class="overlay" id="pinov" style="z-index:20"><div class="card" style="max-width:460px"><h2 style="margin:0 0 10px">Spielleitung</h2><p>Bitte die Spielleitungs-PIN eingeben.</p><input id="pin" inputmode="numeric" autocomplete="off" style="font-size:34px;text-align:center;width:100%;padding:10px;border-radius:12px;border:2px solid #ccd" maxlength="12"><div class="err" id="pinerr" style="color:#c23b3b;min-height:1.4em;margin:8px 0"></div><button class="ok" style="font-size:22px;width:100%" onclick="sendPin()">Anmelden</button></div></div>
 <div class="overlay" id="ov"><div class="card" id="card"></div></div>
-<script src="/vendor/socket.io.min.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script>
+<script src="/vendor/socket.io.min.js"></script><script src="/board.js"></script><script src="/fragekarte.js"></script><script src="/city3d/stadt.js"></script>
 <script>
 const $ = id => document.getElementById(id), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let board, view, S; const sock = io();
-async function loadCfg() { board = (await (await fetch('/api/config')).json()).board; view = BoardView($('board'), board); if (S) render(S); }
+let board, view, S, city, viewMode = '2d'; const sock = io();
+const params = new URLSearchParams(location.search);
+const storedMode = params.get('ansicht') || localStorage.getItem('br-darstellung') || '2d';
+const storedQ = params.get('qualitaet') || localStorage.getItem('br-qualitaet') || 'auto';
+if (['auto', 'niedrig', 'mittel', 'hoch'].includes(storedQ)) $('qselect').value = storedQ;
+async function loadCfg() {
+  board = (await (await fetch('/api/config')).json()).board;
+  view = BoardView($('board'), board);
+  if (city) city.setBoard(board);
+  if (S) render(S);
+  if (!city) setMode(storedMode === '3d' ? '3d' : '2d');
+}
 fetch('/api/join-info').then(r => r.json()).then(j => { $('qr').src = j.qr; $('url').textContent = j.url; if (j.online) $('joinhint').textContent = 'Mit dem Handy beitreten (Internet, kein WLAN nötig):'; $('alt').textContent = j.alternatives.length ? 'Falls nicht erreichbar: ' + j.alternatives.join(', ') : ''; });
 loadCfg(); sock.on('reloadConfig', loadCfg);
 sock.on('hostError', m => alert(m));
@@ -27,9 +44,46 @@ sock.on('hostAuth', a => { hostOk = !a.required; $('pinov').classList.toggle('sh
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && $('pinov').classList.contains('show')) sendPin(); });
 sock.on('state', s => { S = s; if (board) render(s); });
 const emit = (e, a) => sock.emit(e, a);
+function ensureCity() {
+  if (city || !board) return city;
+  if (!window.City3D || !City3D.webglAvailable()) return null;
+  try {
+    city = City3D.mount($('city3d'), board, {
+      quality: $('qselect').value || 'auto',
+      onFallback(msg) { setMode('2d', msg); },
+      onFps(info) { $('fpslabel').textContent = info.label || ''; },
+      onHud(info) { $('citytitle').textContent = info.title || '3D-Stadt'; $('citysub').textContent = info.sub || ''; }
+    });
+    window.__cityApi = city;
+  } catch (err) { console.error(err); city = null; }
+  return city;
+}
+function setMode(next, note) {
+  if (next === '3d') {
+    if (!window.City3D || !City3D.webglAvailable()) { note = note || 'WebGL fehlt auf diesem Gerät. Es bleibt beim 2D-Brett.'; next = '2d'; }
+    else if (!ensureCity()) { note = note || 'Die 3D-Stadt konnte nicht starten. Es bleibt beim 2D-Brett.'; next = '2d'; }
+  }
+  viewMode = next;
+  localStorage.setItem('br-darstellung', viewMode);
+  document.body.classList.toggle('mode-3d', viewMode === '3d');
+  $('btn2d').classList.toggle('sel', viewMode === '2d');
+  $('btn3d').classList.toggle('sel', viewMode === '3d');
+  $('cityhud').hidden = viewMode !== '3d';
+  $('fpslabel').style.display = viewMode === '3d' ? '' : 'none';
+  if (viewMode === '3d' && city) { city.start(); if (S) city.update(S); }
+  else if (city) city.stop();
+  const box = $('citynote');
+  if (note) { box.hidden = false; box.textContent = note; }
+  else if (viewMode === '3d') box.hidden = true;
+  if (S) renderOverlay(S);
+}
+$('btn2d').onclick = () => setMode('2d');
+$('btn3d').onclick = () => setMode('3d');
+$('qselect').onchange = () => { localStorage.setItem('br-qualitaet', $('qselect').value); if (city) city.setQuality($('qselect').value); };
 function render(s) {
   const cur = s.players[s.turn];
   view.update(s.players, s.stepMs || board.rules.stepMs, s.phase === 'playing' && cur ? cur.id : null);
+  if (city) city.update(s);
   $('phase').textContent = s.phase === 'lobby' ? `Lobby – ${s.players.length} Spieler` : s.phase === 'playing' ? `Am Zug: ${cur ? cur.name : '-'}` : 'Spiel beendet';
   $('join').style.display = s.phase === 'playing' ? 'none' : '';
   $('dice').textContent = s.lastRoll && s.phase === 'playing' ? '🎲 ' + s.lastRoll.value : '';
@@ -62,7 +116,8 @@ function renderOverlay(s) {
     card.classList.add('qcard');
     card.innerHTML = `<div class="who" style="margin:0 0 10px">Aktionskarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.htmlAction(pd.card)}</div>`;
     const fk = card.querySelector('.fk'); Fragekarte.fit(fk);
-    const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.62 / fk.offsetHeight);
+    const fit = document.body.classList.contains('mode-3d') ? 0.4 : 0.62;
+    const k = Math.min(innerWidth * fit / fk.offsetWidth, innerHeight * fit / fk.offsetHeight);
     fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left';
     const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto';
   } else {
@@ -72,7 +127,8 @@ function renderOverlay(s) {
     card.classList.add('qcard');
     card.innerHTML = `<div class="who" style="margin:0 0 10px">Fragekarte für <b>${esc(p.name)}</b></div><div class="fkwrap">${Fragekarte.html(pd.card, { chosen: pd.answer, right: pd.card.correct })}</div>${res}`;
     const fk = card.querySelector('.fk'); Fragekarte.fit(fk);
-    const k = Math.min(innerWidth * 0.62 / fk.offsetWidth, innerHeight * 0.62 / fk.offsetHeight);
+    const fit = document.body.classList.contains('mode-3d') ? 0.4 : 0.62;
+    const k = Math.min(innerWidth * fit / fk.offsetWidth, innerHeight * fit / fk.offsetHeight);
     fk.style.transform = `scale(${k})`; fk.style.transformOrigin = 'top left';
     const w = card.querySelector('.fkwrap'); w.style.width = fk.offsetWidth * k + 'px'; w.style.height = fk.offsetHeight * k + 'px'; w.style.margin = '0 auto';
     return;

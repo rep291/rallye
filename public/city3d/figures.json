@@ -1,0 +1,13 @@
+{
+  "hinweis": "Optional: glTF/GLB-Berufsfiguren. Leere URL = farbiger Low-Poly-Platzhalter. Dateien z. B. nach public/city3d/figures/ legen und hier verlinken. Clip-Namen idle, walk, sit werden abgespielt, falls vorhanden.",
+  "scaleToHeight": 1.7,
+  "defaultUrl": "",
+  "byId": {},
+  "byName": {},
+  "byColor": {},
+  "clips": {
+    "idle": ["idle", "Idle", "stand"],
+    "walk": ["walk", "Walk", "run", "running"],
+    "sit": ["sit", "Sit", "sitting", "jail"]
+  }
+}
